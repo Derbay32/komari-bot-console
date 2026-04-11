@@ -1,0 +1,32 @@
+# Nestjs specific
+/dist
+/node_modules
+/build
+/tmp
+/docs
+/.next
+tsconfig.tsbuildinfo
+
+# Logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# dotenv environment variable files
+.env
+.env.development
+.env.test
+.env.production
+
+# temp directory
+.temp
+.tmp
+
+# others
+/openapi
+secret.json
+.DS_Store

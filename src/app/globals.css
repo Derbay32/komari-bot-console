@@ -1,0 +1,144 @@
+:root {
+  color-scheme: light;
+  --page-bg:
+    radial-gradient(circle at top, rgba(22, 104, 220, 0.18), transparent 36%),
+    linear-gradient(180deg, #f8fbff 0%, #eef3fb 100%);
+  --card-shadow: 0 18px 48px rgba(32, 60, 110, 0.08);
+  --border-soft: rgba(19, 55, 107, 0.08);
+  --text-main: #173156;
+  --text-subtle: #5a6b85;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--page-bg);
+  color: var(--text-main);
+}
+
+body {
+  min-width: 320px;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.console-shell {
+  min-height: 100vh;
+  background: transparent;
+}
+
+.console-sider {
+  margin: 16px;
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.78) !important;
+  box-shadow: var(--card-shadow);
+  backdrop-filter: blur(18px);
+}
+
+.console-brand {
+  padding: 22px 20px 10px;
+}
+
+.console-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #1668dc 0%, #36a3ff 100%);
+  color: #fff;
+  font-size: 22px;
+  box-shadow: 0 10px 24px rgba(22, 104, 220, 0.24);
+}
+
+.console-main {
+  background: transparent;
+}
+
+.console-header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  height: auto;
+  margin: 16px 16px 0 0;
+  padding: 20px 24px;
+  border: 1px solid var(--border-soft);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: var(--card-shadow);
+  backdrop-filter: blur(18px);
+}
+
+.console-content {
+  padding: 16px 16px 16px 0;
+}
+
+.glass-card {
+  border: 1px solid var(--border-soft) !important;
+  box-shadow: var(--card-shadow) !important;
+  backdrop-filter: blur(16px);
+}
+
+.status-grid .ant-card-body {
+  padding: 22px;
+}
+
+.module-card {
+  height: 100%;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(244, 248, 255, 0.92)) !important;
+}
+
+.module-card .ant-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+}
+
+.subtle-text {
+  color: var(--text-subtle);
+}
+
+.log-item {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.log-item__meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.log-item__line {
+  color: var(--text-subtle);
+  font-size: 13px;
+}
+
+@media (max-width: 992px) {
+  .console-sider {
+    margin: 12px;
+  }
+
+  .console-header {
+    margin: 0 12px;
+  }
+
+  .console-content {
+    padding: 12px;
+  }
+}
