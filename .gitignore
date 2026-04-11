@@ -28,5 +28,6 @@ lerna-debug.log*
 
 # others
 /openapi
+/.kilo
 secret.json
 .DS_Store
