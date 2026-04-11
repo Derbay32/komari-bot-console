@@ -60,7 +60,7 @@ export function usePutUserProfile() {
         },
       ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["user-profiles", "list"] });
+      queryClient.invalidateQueries({ queryKey: ["user-profiles"] });
     },
   });
 }
@@ -80,7 +80,7 @@ export function useDeleteUserProfile() {
         { method: "DELETE" },
       ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["user-profiles", "list"] });
+      queryClient.invalidateQueries({ queryKey: ["user-profiles"] });
     },
   });
 }

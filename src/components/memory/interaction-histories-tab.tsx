@@ -141,6 +141,7 @@ export function InteractionHistoriesTab() {
       <Card className="glass-card" variant="borderless">
         <Space wrap>
           <Input
+            name="interaction_group_id"
             placeholder="Group ID"
             allowClear
             value={filters.group_id}
@@ -151,6 +152,7 @@ export function InteractionHistoriesTab() {
             style={{ width: 160 }}
           />
           <Input
+            name="interaction_user_id"
             placeholder="User ID"
             allowClear
             value={filters.user_id}
@@ -161,6 +163,7 @@ export function InteractionHistoriesTab() {
             style={{ width: 160 }}
           />
           <Input
+            name="interaction_search"
             placeholder="搜索"
             allowClear
             prefix={<SearchOutlined />}

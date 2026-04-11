@@ -190,6 +190,7 @@ export function ConversationsTab() {
         <Space wrap style={{ display: "flex", justifyContent: "space-between" }}>
           <Space wrap>
             <Input
+              name="conversation_group_id"
               placeholder="Group ID"
               allowClear
               value={filters.group_id}
@@ -200,6 +201,7 @@ export function ConversationsTab() {
               style={{ width: 160 }}
             />
             <Input
+              name="conversation_participant"
               placeholder="参与者"
               allowClear
               prefix={<SearchOutlined />}
@@ -211,6 +213,7 @@ export function ConversationsTab() {
               style={{ width: 160 }}
             />
             <Input
+              name="conversation_search"
               placeholder="搜索"
               allowClear
               prefix={<SearchOutlined />}
