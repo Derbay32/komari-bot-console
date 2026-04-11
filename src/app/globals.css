@@ -49,6 +49,12 @@ a {
   padding: 22px 20px 10px;
 }
 
+.console-menu.ant-menu {
+  border-inline-end: none !important;
+  background: transparent !important;
+  padding: 8px 12px 20px !important;
+}
+
 .console-logo {
   display: inline-flex;
   align-items: center;

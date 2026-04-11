@@ -14,6 +14,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <ConfigProvider
         locale={zhCN}
+        input={{ autoComplete: "off" }}
+        textArea={{ autoComplete: "off" }}
         theme={{
           algorithm: theme.defaultAlgorithm,
           token: {

@@ -73,14 +73,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </Space>
         </div>
         <Menu
+          className="console-menu"
           mode="inline"
           selectedKeys={[selectedKey]}
           items={menuItems}
-          style={{
-            borderInlineEnd: "none",
-            background: "transparent",
-            padding: "8px 12px 20px",
-          }}
         />
       </Sider>
       <Layout className="console-main">
