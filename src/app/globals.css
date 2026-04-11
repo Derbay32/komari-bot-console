@@ -76,7 +76,9 @@ a {
   padding: 20px 24px;
   border: 1px solid var(--border-soft);
   border-radius: 28px;
-  background: rgba(255, 255, 255, 0.82);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(244, 248, 255, 0.9))
+    !important;
   box-shadow: var(--card-shadow);
   backdrop-filter: blur(18px);
 }

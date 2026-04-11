@@ -1,46 +1,64 @@
 "use client";
 
 import {
-  ApiOutlined,
   BookOutlined,
   ClockCircleOutlined,
   DatabaseOutlined,
   RobotOutlined,
-  SafetyCertificateOutlined,
 } from "@ant-design/icons";
-import { Badge, Button, Layout, Menu, Space, Tag, Typography } from "antd";
+import { Layout, Menu, Space, Typography } from "antd";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 const { Content, Header, Sider } = Layout;
+
+const routeMap: Record<string, string> = {
+  "/": "overview",
+  "/knowledge": "knowledge",
+  "/memory": "memory",
+  "/logs": "logs",
+};
+
+const titleMap: Record<string, string> = {
+  "/": "总览",
+  "/knowledge": "知识库",
+  "/memory": "记忆中心",
+  "/logs": "回复日志",
+};
 
 const menuItems = [
   {
     key: "overview",
     icon: <RobotOutlined />,
-    label: "总览",
+    label: <Link href="/">总览</Link>,
   },
   {
     key: "knowledge",
     icon: <BookOutlined />,
-    label: "知识库",
+    label: <Link href="/knowledge">知识库</Link>,
   },
   {
     key: "memory",
     icon: <DatabaseOutlined />,
-    label: "记忆中心",
+    label: <Link href="/memory">记忆中心</Link>,
   },
   {
     key: "logs",
     icon: <ClockCircleOutlined />,
-    label: "回复日志",
+    label: <Link href="/logs">回复日志</Link>,
   },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const selectedKey = routeMap[pathname] ?? "overview";
+  const pageTitle = titleMap[pathname] ?? "管理后台";
+
   return (
     <Layout className="console-shell">
       <Sider breakpoint="lg" collapsedWidth="0" width={252} className="console-sider">
         <div className="console-brand">
-          <Space direction="vertical" size={12}>
+          <Space orientation="vertical" size={12}>
             <div className="console-logo">
               <RobotOutlined />
             </div>
@@ -56,7 +74,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
         <Menu
           mode="inline"
-          selectedKeys={["overview"]}
+          selectedKeys={[selectedKey]}
           items={menuItems}
           style={{
             borderInlineEnd: "none",
@@ -67,24 +85,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </Sider>
       <Layout className="console-main">
         <Header className="console-header">
-          <Space direction="vertical" size={4}>
-            <Space wrap>
-              <Badge status="processing" />
-              <Typography.Text strong>管理后台初始化完成</Typography.Text>
-              <Tag color="blue" icon={<ApiOutlined />}>
-                App Router + BFF Proxy
-              </Tag>
-            </Space>
-            <Typography.Text className="subtle-text">
-              浏览器只访问本地 Next.js，Bearer Token 保留在服务端代理层。
-            </Typography.Text>
-          </Space>
-          <Space wrap>
-            <Tag color="gold" icon={<SafetyCertificateOutlined />}>
-              本地密钥优先
-            </Tag>
-            <Button type="primary">开始接业务页面</Button>
-          </Space>
+          <Typography.Title level={4} style={{ margin: 0 }}>
+            {pageTitle}
+          </Typography.Title>
         </Header>
         <Content className="console-content">{children}</Content>
       </Layout>
