@@ -9,6 +9,7 @@ import {
   Drawer,
   Empty,
   Input,
+  Menu,
   Pagination,
   Popconfirm,
   Row,
@@ -26,6 +27,7 @@ import {
   useDeleteUserProfile,
   usePutUserProfile,
   useUserProfile,
+  useUserProfileGroupSummaryList,
   useUserProfileList,
 } from "@/lib/hooks/use-user-profiles";
 
@@ -49,16 +51,20 @@ type UserProfileCardData = {
   userId: string;
 };
 
-type UserProfileGroupSection = {
+type UserProfileGroupSummary = {
   groupId: string;
-  users: UserProfileCardData[];
+  userCount: number;
 };
 
+const EMPTY_GROUP_SUMMARIES: UserProfileGroupSummary[] = [];
+
 export function UserProfilesTab() {
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [groupKeyword, setGroupKeyword] = useState("");
+
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [filters, setFilters] = useState<{
-    group_id?: string;
     user_id?: string;
     q?: string;
   }>({});
@@ -75,26 +81,51 @@ export function UserProfilesTab() {
   const [editRecord, setEditRecord] = useState<MemoryEntityEntry | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
 
+  const groupSummaryQuery = useUserProfileGroupSummaryList();
+  const groupSummaries = groupSummaryQuery.data ?? EMPTY_GROUP_SUMMARIES;
+  const activeGroupId =
+    selectedGroupId && groupSummaries.some((summary) => summary.groupId === selectedGroupId)
+      ? selectedGroupId
+      : groupSummaries[0]?.groupId ?? null;
+  const activeGroupSummary =
+    groupSummaries.find((summary) => summary.groupId === activeGroupId) ?? null;
+
+  const filteredGroupSummaries = groupSummaries.filter((summary) => {
+    const keyword = groupKeyword.trim();
+    return !keyword || summary.groupId.includes(keyword);
+  });
+
   const listParams = {
-    ...filters,
+    group_id: activeGroupId ?? undefined,
+    user_id: filters.user_id,
+    q: filters.q,
     limit: pageSize,
     offset: (page - 1) * pageSize,
   };
 
-  const listQuery = useUserProfileList(listParams);
+  const listQuery = useUserProfileList(listParams, {
+    enabled: !!activeGroupId,
+  });
   const detailQuery = useUserProfile(selectedUser?.groupId, selectedUser?.userId);
   const putMutation = usePutUserProfile();
   const deleteMutation = useDeleteUserProfile();
 
-  const groupSections = buildUserProfileSections(listQuery.data?.items ?? []);
-  const visibleUserCount = groupSections.reduce(
-    (count, section) => count + section.users.length,
-    0,
-  );
-
+  const profileCards = buildUserProfileCards(listQuery.data?.items ?? []);
+  const visibleUserCount = profileCards.length;
+  const isFiltering = Boolean(filters.user_id || filters.q);
   const activeProfile = detailQuery.data
     ? createUserProfileCardData([detailQuery.data])
     : selectedSummary;
+
+  const handleSelectGroup = useCallback((groupId: string) => {
+    setSelectedGroupId(groupId);
+    setPage(1);
+    setDetailDrawerOpen(false);
+    setSelectedUser(null);
+    setSelectedSummary(null);
+    setEditRecord(null);
+    setEditModalOpen(false);
+  }, []);
 
   const handleViewDetail = useCallback((profile: UserProfileCardData) => {
     setSelectedSummary(profile);
@@ -166,152 +197,285 @@ export function UserProfilesTab() {
 
   return (
     <Space orientation="vertical" size={16} style={{ display: "flex" }}>
-      <Card className="glass-card" variant="borderless">
-        <Space wrap>
-          <Input
-            name="group_id"
-            placeholder="Group ID"
-            allowClear
-            value={filters.group_id}
-            onChange={(e) => {
-              setPage(1);
-              setFilters((current) => ({
-                ...current,
-                group_id: e.target.value || undefined,
-              }));
-            }}
-            style={{ width: 160 }}
-          />
-          <Input
-            name="user_id"
-            placeholder="User ID"
-            allowClear
-            value={filters.user_id}
-            onChange={(e) => {
-              setPage(1);
-              setFilters((current) => ({
-                ...current,
-                user_id: e.target.value || undefined,
-              }));
-            }}
-            style={{ width: 160 }}
-          />
-          <Input
-            name="user_profile_search"
-            placeholder="搜索"
-            allowClear
-            prefix={<SearchOutlined />}
-            value={filters.q}
-            onChange={(e) => {
-              setPage(1);
-              setFilters((current) => ({ ...current, q: e.target.value || undefined }));
-            }}
-            style={{ width: 220 }}
-          />
-        </Space>
-      </Card>
-
-      {listQuery.isError ? (
+      {groupSummaryQuery.isError ? (
         <Alert
           showIcon
           type="warning"
-          message="用户画像加载失败"
+          message="群组菜单加载失败"
           description={
-            listQuery.error instanceof Error ? listQuery.error.message : "请稍后重试。"
+            groupSummaryQuery.error instanceof Error
+              ? groupSummaryQuery.error.message
+              : "请稍后重试。"
           }
         />
       ) : null}
 
-      {listQuery.isPending ? (
-        <Card className="glass-card" variant="borderless" loading />
-      ) : groupSections.length ? (
-        groupSections.map((section) => (
+      <Row gutter={[16, 16]} align="top">
+        <Col xs={24} lg={7} xl={6}>
           <Card
-            key={section.groupId}
             className="glass-card"
             variant="borderless"
-            title={`Group ID · ${section.groupId}`}
-            extra={<Tag color="blue">{section.users.length} 位用户</Tag>}
+            title="群组菜单"
+            extra={<Tag color="blue">{groupSummaries.length} 个群组</Tag>}
+            loading={groupSummaryQuery.isPending}
           >
-            <Row gutter={[16, 16]}>
-              {section.users.map((profile) => (
-                <Col xs={24} md={12} xl={8} key={`${profile.groupId}-${profile.userId}`}>
-                  <Card
-                    className="glass-card module-card"
-                    variant="borderless"
-                    hoverable
-                    extra={
-                      <Button type="link" onClick={() => handleViewDetail(profile)}>
-                        查看画像
-                      </Button>
-                    }
-                  >
-                    <Space orientation="vertical" size={12} style={{ display: "flex" }}>
-                      <div>
-                        <Typography.Title level={5} style={{ marginBottom: 8 }}>
-                          {profile.displayName}
-                        </Typography.Title>
-                        <Typography.Text className="subtle-text">
-                          用户 ID：{profile.userId}
-                        </Typography.Text>
-                      </div>
+            <Space orientation="vertical" size={12} style={{ display: "flex" }}>
+              <Input
+                name="user_profile_group_search"
+                placeholder="筛选 Group ID"
+                allowClear
+                value={groupKeyword}
+                onChange={(e) => {
+                  setGroupKeyword(e.target.value);
+                }}
+              />
 
-                      <div>
-                        <Typography.Text strong>用户画像</Typography.Text>
-                        <Typography.Paragraph
-                          style={{ margin: "8px 0 0" }}
-                          ellipsis={{ rows: 3 }}
+              {filteredGroupSummaries.length ? (
+                <Menu
+                  mode="inline"
+                  selectedKeys={activeGroupId ? [activeGroupId] : []}
+                  items={filteredGroupSummaries.map((summary) => ({
+                    key: summary.groupId,
+                    label: (
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 12,
+                        }}
+                      >
+                        <span
+                          style={{
+                            flex: 1,
+                            minWidth: 0,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
                         >
-                          {getTraitPreview(profile)}
-                        </Typography.Paragraph>
-                      </div>
-
-                      <Space wrap size={[8, 8]}>
-                        <Tag color="geekblue">{profile.traitItems.length} 条画像</Tag>
-                        <Tag color={getImportanceColor(profile.importance)}>
-                          重要性 {profile.importance}
+                          {summary.groupId}
+                        </span>
+                        <Tag color="blue" style={{ marginInlineEnd: 0 }}>
+                          {summary.userCount}
                         </Tag>
-                        <Tag>{formatDateTime(profile.lastAccessed)}</Tag>
-                      </Space>
-                    </Space>
-                  </Card>
-                </Col>
-              ))}
-            </Row>
-          </Card>
-        ))
-      ) : (
-        <Card className="glass-card" variant="borderless">
-          <Empty description="暂无用户画像数据" />
-        </Card>
-      )}
+                      </div>
+                    ),
+                  }))}
+                  onClick={({ key }) => {
+                    handleSelectGroup(String(key));
+                  }}
+                  style={{
+                    borderInlineEnd: "none",
+                    background: "transparent",
+                  }}
+                />
+              ) : (
+                <Empty
+                  description={groupKeyword ? "没有匹配的群组" : "暂无群组数据"}
+                />
+              )}
 
-      <Card className="glass-card" variant="borderless">
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 16,
-            flexWrap: "wrap",
-          }}
-        >
-          <Typography.Text className="subtle-text">
-            当前页展示 {visibleUserCount} 位用户，接口共返回 {listQuery.data?.total ?? 0} 条画像记录
-          </Typography.Text>
-          <Pagination
-            current={page}
-            pageSize={pageSize}
-            total={listQuery.data?.total ?? 0}
-            showSizeChanger
-            showTotal={(total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`}
-            onChange={(nextPage, nextPageSize) => {
-              setPage(nextPage);
-              setPageSize(nextPageSize);
-            }}
-          />
-        </div>
-      </Card>
+              {activeGroupSummary ? (
+                <Typography.Text className="subtle-text">
+                  当前群共 {activeGroupSummary.userCount} 位用户
+                </Typography.Text>
+              ) : null}
+            </Space>
+          </Card>
+        </Col>
+
+        <Col xs={24} lg={17} xl={18}>
+          <Space orientation="vertical" size={16} style={{ display: "flex" }}>
+            <Card className="glass-card" variant="borderless">
+              <Space wrap style={{ display: "flex", justifyContent: "space-between" }}>
+                <Space wrap>
+                  <Input
+                    name="user_id"
+                    placeholder="User ID"
+                    allowClear
+                    value={filters.user_id}
+                    onChange={(e) => {
+                      setPage(1);
+                      setFilters((current) => ({
+                        ...current,
+                        user_id: e.target.value || undefined,
+                      }));
+                    }}
+                    style={{ width: 180 }}
+                  />
+                  <Input
+                    name="user_profile_search"
+                    placeholder="搜索画像"
+                    allowClear
+                    prefix={<SearchOutlined />}
+                    value={filters.q}
+                    onChange={(e) => {
+                      setPage(1);
+                      setFilters((current) => ({
+                        ...current,
+                        q: e.target.value || undefined,
+                      }));
+                    }}
+                    style={{ width: 240 }}
+                  />
+                </Space>
+
+                <Space wrap size={[8, 8]}>
+                  {activeGroupId ? (
+                    <Tag color="geekblue">Group ID · {activeGroupId}</Tag>
+                  ) : null}
+                  {activeGroupSummary ? (
+                    <Tag color="blue">{activeGroupSummary.userCount} 位用户</Tag>
+                  ) : null}
+                </Space>
+              </Space>
+            </Card>
+
+            {listQuery.isError ? (
+              <Alert
+                showIcon
+                type="warning"
+                message="用户画像加载失败"
+                description={
+                  listQuery.error instanceof Error
+                    ? listQuery.error.message
+                    : "请稍后重试。"
+                }
+              />
+            ) : null}
+
+            {!activeGroupId && groupSummaryQuery.isPending ? (
+              <Card className="glass-card" variant="borderless" loading />
+            ) : null}
+
+            {!activeGroupId && !groupSummaryQuery.isPending ? (
+              <Card className="glass-card" variant="borderless">
+                <Empty description="暂无可用群组" />
+              </Card>
+            ) : null}
+
+            {activeGroupId ? (
+              listQuery.isPending ? (
+                <Card className="glass-card" variant="borderless" loading />
+              ) : profileCards.length ? (
+                <Card
+                  className="glass-card"
+                  variant="borderless"
+                  title={`Group ID · ${activeGroupId}`}
+                  extra={
+                    activeGroupSummary ? (
+                      <Tag color="blue">{activeGroupSummary.userCount} 位用户</Tag>
+                    ) : null
+                  }
+                >
+                  <Row gutter={[16, 16]}>
+                    {profileCards.map((profile) => (
+                      <Col
+                        xs={24}
+                        md={12}
+                        xl={8}
+                        key={`${profile.groupId}-${profile.userId}`}
+                      >
+                        <Card
+                          className="glass-card module-card"
+                          variant="borderless"
+                          hoverable
+                          extra={
+                            <Button type="link" onClick={() => handleViewDetail(profile)}>
+                              查看画像
+                            </Button>
+                          }
+                        >
+                          <Space
+                            orientation="vertical"
+                            size={12}
+                            style={{ display: "flex" }}
+                          >
+                            <div>
+                              <Typography.Title level={5} style={{ marginBottom: 8 }}>
+                                {profile.displayName}
+                              </Typography.Title>
+                              <Typography.Text className="subtle-text">
+                                用户 ID：{profile.userId}
+                              </Typography.Text>
+                            </div>
+
+                            <div>
+                              <Typography.Text strong>用户画像</Typography.Text>
+                              <Typography.Paragraph
+                                style={{ margin: "8px 0 0" }}
+                                ellipsis={{ rows: 3 }}
+                              >
+                                {getTraitPreview(profile)}
+                              </Typography.Paragraph>
+                            </div>
+
+                            <Space wrap size={[8, 8]}>
+                              <Tag color="geekblue">{profile.traitItems.length} 条画像</Tag>
+                              <Tag color={getImportanceColor(profile.importance)}>
+                                重要性 {profile.importance}
+                              </Tag>
+                              <Tag>{formatDateTime(profile.lastAccessed)}</Tag>
+                            </Space>
+                          </Space>
+                        </Card>
+                      </Col>
+                    ))}
+                  </Row>
+                </Card>
+              ) : (
+                <Card
+                  className="glass-card"
+                  variant="borderless"
+                  title={`Group ID · ${activeGroupId}`}
+                  extra={
+                    activeGroupSummary ? (
+                      <Tag color="blue">{activeGroupSummary.userCount} 位用户</Tag>
+                    ) : null
+                  }
+                >
+                  <Empty
+                    description={
+                      isFiltering ? "当前筛选下暂无用户画像" : "该群暂无用户画像"
+                    }
+                  />
+                </Card>
+              )
+            ) : null}
+
+            {activeGroupId && !listQuery.isError ? (
+              <Card className="glass-card" variant="borderless">
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 16,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <Typography.Text className="subtle-text">
+                    当前群共 {activeGroupSummary?.userCount ?? 0} 位用户，
+                    当前筛选命中 {listQuery.data?.total ?? 0} 条画像记录，
+                    本页展示 {visibleUserCount} 位用户
+                  </Typography.Text>
+                  <Pagination
+                    current={page}
+                    pageSize={pageSize}
+                    total={listQuery.data?.total ?? 0}
+                    showSizeChanger
+                    showTotal={(total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`}
+                    onChange={(nextPage, nextPageSize) => {
+                      setPage(nextPage);
+                      setPageSize(nextPageSize);
+                    }}
+                  />
+                </div>
+              </Card>
+            ) : null}
+          </Space>
+        </Col>
+      </Row>
 
       <Drawer
         open={detailDrawerOpen}
@@ -456,26 +620,18 @@ export function UserProfilesTab() {
   );
 }
 
-function buildUserProfileSections(items: MemoryEntityEntry[]): UserProfileGroupSection[] {
-  const groupMap = new Map<string, Map<string, MemoryEntityEntry[]>>();
+function buildUserProfileCards(items: MemoryEntityEntry[]) {
+  const userMap = new Map<string, MemoryEntityEntry[]>();
 
   for (const item of items) {
-    const groupUsers = groupMap.get(item.group_id) ?? new Map<string, MemoryEntityEntry[]>();
-    const records = groupUsers.get(item.user_id) ?? [];
-
+    const records = userMap.get(item.user_id) ?? [];
     records.push(item);
-    groupUsers.set(item.user_id, records);
-    groupMap.set(item.group_id, groupUsers);
+    userMap.set(item.user_id, records);
   }
 
-  return Array.from(groupMap.entries()).map(([groupId, users]) => ({
-    groupId,
-    users: Array.from(users.values())
-      .map((records) => createUserProfileCardData(records))
-      .sort((left, right) =>
-        left.displayName.localeCompare(right.displayName, "zh-CN"),
-      ),
-  }));
+  return Array.from(userMap.values())
+    .map((records) => createUserProfileCardData(records))
+    .sort((left, right) => left.displayName.localeCompare(right.displayName, "zh-CN"));
 }
 
 function createUserProfileCardData(records: MemoryEntityEntry[]): UserProfileCardData {
