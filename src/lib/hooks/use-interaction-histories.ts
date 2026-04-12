@@ -4,6 +4,7 @@ import type { components } from "@/types/komari-api";
 
 type MemoryEntityEntry = components["schemas"]["MemoryEntityEntry"];
 type MemoryEntityListResponse = components["schemas"]["MemoryEntityListResponse"];
+const INTERACTION_HISTORY_BATCH_SIZE = 100;
 
 type MemoryEntityListParams = {
   group_id?: string | null;
@@ -23,6 +24,35 @@ export function useInteractionHistoryList(params: MemoryEntityListParams) {
           params: params as Record<string, string | number | null>,
         },
       ),
+  });
+}
+
+export function useInteractionHistoryGroupSummaryList() {
+  return useQuery({
+    queryKey: ["interaction-histories", "group-summary-list"],
+    queryFn: async () => {
+      const items = await fetchAllInteractionHistories();
+      const groupMap = new Map<string, Set<string>>();
+
+      for (const item of items) {
+        const groupUsers = groupMap.get(item.group_id) ?? new Set<string>();
+        groupUsers.add(item.user_id);
+        groupMap.set(item.group_id, groupUsers);
+      }
+
+      return Array.from(groupMap.entries())
+        .map(([groupId, users]) => ({
+          groupId,
+          userCount: users.size,
+        }))
+        .sort((left, right) => {
+          if (right.userCount !== left.userCount) {
+            return right.userCount - left.userCount;
+          }
+
+          return left.groupId.localeCompare(right.groupId, "zh-CN");
+        });
+    },
   });
 }
 
@@ -90,4 +120,35 @@ export function useDeleteInteractionHistory() {
       });
     },
   });
+}
+
+async function fetchAllInteractionHistories(
+  params: Omit<MemoryEntityListParams, "limit" | "offset"> = {},
+) {
+  const items: MemoryEntityEntry[] = [];
+  let offset = 0;
+  let total = 0;
+
+  do {
+    const response = await apiFetch<MemoryEntityListResponse>(
+      "/api/komari-memory/v1/interaction-histories",
+      {
+        params: {
+          ...params,
+          limit: INTERACTION_HISTORY_BATCH_SIZE,
+          offset,
+        } as Record<string, string | number | null>,
+      },
+    );
+
+    items.push(...response.items);
+    total = response.total;
+    offset += response.items.length;
+
+    if (!response.items.length) {
+      break;
+    }
+  } while (items.length < total);
+
+  return items;
 }
