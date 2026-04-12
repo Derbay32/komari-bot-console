@@ -30,5 +30,6 @@ lerna-debug.log*
 /openapi
 /.kilo
 /.codeartsdoer
+/.playwright-mcp
 secret.json
 .DS_Store
