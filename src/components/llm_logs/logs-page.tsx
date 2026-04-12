@@ -22,6 +22,50 @@ import { useReplyLog, useReplyLogList } from "@/lib/hooks/use-reply-logs";
 type ReplyLogListItem = components["schemas"]["ReplyLogListItem"];
 type ReplyLogDetail = components["schemas"]["ReplyLogDetail"];
 
+function extractAssistantOutput(output?: string | null) {
+  if (!output) {
+    return "-";
+  }
+
+  const thinkEndIndex = output.search(/<\/think>/i);
+  if (thinkEndIndex !== -1) {
+    const afterThink = output.slice(thinkEndIndex + "</think>".length).trim();
+    if (afterThink) {
+      return afterThink.replace(/^<content>/i, "").replace(/<\/content>$/i, "").trim() || "-";
+    }
+  }
+
+  const contentMatch = output.match(/<content>([\s\S]*?)(?:<\/content>|$)/i);
+  if (contentMatch?.[1]?.trim()) {
+    return contentMatch[1].trim();
+  }
+
+  return output.trim() || "-";
+}
+
+function splitXmlOutput(output?: string | null) {
+  if (!output) {
+    return { thinking: null, response: null, raw: null };
+  }
+
+  const contentMatch = output.match(/<content>([\s\S]*?)(?:<\/content>|$)/i);
+  const thinkEndIndex = output.search(/<\/think>/i);
+
+  const thinking =
+    thinkEndIndex !== -1 ? output.slice(0, thinkEndIndex).trim() || null : null;
+  const response =
+    thinkEndIndex !== -1
+      ? output
+          .slice(thinkEndIndex + "</think>".length)
+          .replace(/^\s*<content>/i, "")
+          .replace(/<\/content>\s*$/i, "")
+          .trim() || null
+      : contentMatch?.[1]?.trim() || null;
+  const raw = thinking || response ? null : output.trim();
+
+  return { thinking, response, raw };
+}
+
 export function LogsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -66,16 +110,7 @@ export function LogsPage() {
       width: 180,
       render: (v: string) => new Date(v).toLocaleString("zh-CN"),
     },
-    { title: "Method", dataIndex: "method", width: 100 },
     { title: "Model", dataIndex: "model", width: 140, ellipsis: true },
-    { title: "Phase", dataIndex: "phase", width: 100 },
-    {
-      title: "Trace ID",
-      dataIndex: "trace_id",
-      width: 160,
-      ellipsis: true,
-      render: (v: string) => v || "-",
-    },
     {
       title: "耗时",
       dataIndex: "duration_ms",
@@ -92,10 +127,13 @@ export function LogsPage() {
       ),
     },
     {
-      title: "Input",
-      dataIndex: "input_preview",
+      title: "输出",
+      dataIndex: "output_preview",
       ellipsis: true,
-      render: (v: string) => v || "-",
+      render: (_: string, record: ReplyLogListItem) =>
+        extractAssistantOutput(detailQuery.data?.date === record.date && detailQuery.data?.line_number === record.line_number
+          ? detailQuery.data.output
+          : record.output_preview),
     },
     {
       title: "操作",
@@ -240,18 +278,17 @@ export function LogsPage() {
 }
 
 function LogDetailContent({ detail }: { detail: ReplyLogDetail }) {
+  const parsedOutput = splitXmlOutput(detail.output);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {[
-        { label: "Date", value: detail.date },
-        { label: "Line Number", value: String(detail.line_number) },
-        { label: "Timestamp", value: new Date(detail.timestamp).toLocaleString("zh-CN") },
-        { label: "Method", value: detail.method },
-        { label: "Model", value: detail.model },
-        { label: "Trace ID", value: detail.trace_id || "-" },
-        { label: "Phase", value: detail.phase || "-" },
+        { label: "日期", value: detail.date },
+        { label: "时间", value: new Date(detail.timestamp).toLocaleString("zh-CN") },
+        { label: "方法", value: detail.method },
+        { label: "模型", value: detail.model },
         {
-          label: "Duration",
+          label: "耗时",
           value: typeof detail.duration_ms === "number" ? `${Math.round(detail.duration_ms)}ms` : "-",
         },
       ].map((item) => (
@@ -262,32 +299,15 @@ function LogDetailContent({ detail }: { detail: ReplyLogDetail }) {
       ))}
 
       <div>
-        <Typography.Text strong>Status: </Typography.Text>
+        <Typography.Text strong>状态: </Typography.Text>
         <Tag color={detail.status === "success" ? "success" : "error"}>
           {detail.status}
         </Tag>
       </div>
 
-      <div>
-        <Typography.Text strong>Input Preview:</Typography.Text>
-        <pre style={codeBlockStyle}>{detail.input_preview || "(空)"}</pre>
-      </div>
-
-      <div>
-        <Typography.Text strong>Output Preview:</Typography.Text>
-        <pre style={codeBlockStyle}>{detail.output_preview || "(空)"}</pre>
-      </div>
-
-      {detail.error_preview && (
-        <div>
-          <Typography.Text strong>Error Preview:</Typography.Text>
-          <pre style={{ ...codeBlockStyle, color: "#ff4d4f" }}>{detail.error_preview}</pre>
-        </div>
-      )}
-
       {detail.input !== undefined && (
         <div>
-          <Typography.Text strong>Input (完整):</Typography.Text>
+          <Typography.Text strong>输入:</Typography.Text>
           <pre style={codeBlockStyle}>
             {typeof detail.input === "string"
               ? detail.input
@@ -298,14 +318,32 @@ function LogDetailContent({ detail }: { detail: ReplyLogDetail }) {
 
       {detail.output !== undefined && detail.output !== null && (
         <div>
-          <Typography.Text strong>Output (完整):</Typography.Text>
-          <pre style={codeBlockStyle}>{detail.output}</pre>
+          {parsedOutput.thinking ? (
+            <>
+              <Typography.Text strong>思考:</Typography.Text>
+              <pre style={codeBlockStyle}>{parsedOutput.thinking}</pre>
+            </>
+          ) : null}
+
+          {parsedOutput.response ? (
+            <>
+              <Typography.Text strong>输出:</Typography.Text>
+              <pre style={codeBlockStyle}>{parsedOutput.response}</pre>
+            </>
+          ) : null}
+
+          {parsedOutput.raw ? (
+            <>
+              <Typography.Text strong>原始输出:</Typography.Text>
+              <pre style={codeBlockStyle}>{parsedOutput.raw}</pre>
+            </>
+          ) : null}
         </div>
       )}
 
       {detail.error !== undefined && detail.error !== null && (
         <div>
-          <Typography.Text strong>Error (完整):</Typography.Text>
+          <Typography.Text strong>错误:</Typography.Text>
           <pre style={{ ...codeBlockStyle, color: "#ff4d4f" }}>{detail.error}</pre>
         </div>
       )}
