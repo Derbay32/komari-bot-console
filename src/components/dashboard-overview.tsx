@@ -14,6 +14,7 @@ import {
 } from "antd";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
+import type { Route } from "next";
 
 import { apiFetch } from "@/lib/http/client";
 import type { components } from "@/types/komari-api";
@@ -23,11 +24,18 @@ type KnowledgeListResponse = components["schemas"]["KnowledgeListResponse"];
 type MemoryEntityListResponse = components["schemas"]["MemoryEntityListResponse"];
 type ReplyLogListResponse = components["schemas"]["ReplyLogListResponse"];
 
+type OverviewCardItem = {
+  href: Route;
+  loading: boolean;
+  title: string;
+  value: number;
+};
+
 export function DashboardOverview() {
   const overviewQuery = useQuery({
     queryKey: ["dashboard", "overview"],
     queryFn: async () => {
-      const [knowledge, conversations, profiles, logs] = await Promise.all([
+      const [knowledge, conversations, profiles, llm_logs] = await Promise.all([
         apiFetch<KnowledgeListResponse>("/api/komari-knowledge/v1/knowledge", {
           params: { limit: 1, offset: 0 },
         }),
@@ -46,7 +54,7 @@ export function DashboardOverview() {
         knowledgeTotal: knowledge.total,
         conversationTotal: conversations.total,
         profileTotal: profiles.total,
-        latestLogs: logs.items,
+        latestLogs: llm_logs.items,
       };
     },
   });
@@ -75,32 +83,13 @@ export function DashboardOverview() {
       ) : null}
 
       <Row gutter={[16, 16]} className="status-grid">
-        {([
-          {
-            title: "知识条目",
-            value: overviewQuery.data?.knowledgeTotal ?? 0,
-            loading: overviewQuery.isPending,
-            href: "/knowledge" as const,
-          },
-          {
-            title: "对话数量",
-            value: overviewQuery.data?.conversationTotal ?? 0,
-            loading: overviewQuery.isPending,
-            href: "/memory" as const,
-          },
-          {
-            title: "用户画像",
-            value: overviewQuery.data?.profileTotal ?? 0,
-            loading: overviewQuery.isPending,
-            href: "/memory" as const,
-          },
-          {
-            title: "最近日志",
-            value: overviewQuery.data?.latestLogs.length ?? 0,
-            loading: overviewQuery.isPending,
-            href: "/logs" as const,
-          },
-        ] as const).map((item) => (
+        {buildOverviewCardItems({
+          conversationTotal: overviewQuery.data?.conversationTotal ?? 0,
+          knowledgeTotal: overviewQuery.data?.knowledgeTotal ?? 0,
+          latestLogCount: overviewQuery.data?.latestLogs.length ?? 0,
+          loading: overviewQuery.isPending,
+          profileTotal: overviewQuery.data?.profileTotal ?? 0,
+        }).map((item) => (
           <Col xs={24} sm={12} xl={6} key={item.title}>
             <Link href={item.href}>
               <Card className="glass-card module-card" variant="borderless" hoverable>
@@ -154,4 +143,39 @@ export function DashboardOverview() {
       </Card>
     </Space>
   );
+}
+
+function buildOverviewCardItems(params: {
+  conversationTotal: number;
+  knowledgeTotal: number;
+  latestLogCount: number;
+  loading: boolean;
+  profileTotal: number;
+}): OverviewCardItem[] {
+  return [
+    {
+      title: "知识条目",
+      value: params.knowledgeTotal,
+      loading: params.loading,
+      href: "/knowledge" as Route,
+    },
+    {
+      title: "对话数量",
+      value: params.conversationTotal,
+      loading: params.loading,
+      href: "/memory" as Route,
+    },
+    {
+      title: "用户画像",
+      value: params.profileTotal,
+      loading: params.loading,
+      href: "/memory" as Route,
+    },
+    {
+      title: "最近日志",
+      value: params.latestLogCount,
+      loading: params.loading,
+      href: "/llm_logs" as Route,
+    },
+  ];
 }

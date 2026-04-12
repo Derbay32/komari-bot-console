@@ -6,7 +6,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "Komari 管理后台",
+  title: "Komari-bot 管理后台",
   description: "用于管理知识库、记忆数据与回复日志的控制台。",
 };
 

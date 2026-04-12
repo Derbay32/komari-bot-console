@@ -9,6 +9,7 @@ import {
 import { Layout, Menu, Space, Typography } from "antd";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { Route } from "next";
 
 const { Content, Header, Sider } = Layout;
 
@@ -16,15 +17,17 @@ const routeMap: Record<string, string> = {
   "/": "overview",
   "/knowledge": "knowledge",
   "/memory": "memory",
-  "/logs": "logs",
+  "/llm_logs": "logs",
 };
 
 const titleMap: Record<string, string> = {
   "/": "总览",
   "/knowledge": "知识库",
   "/memory": "记忆中心",
-  "/logs": "回复日志",
+  "/llm_logs": "回复日志",
 };
+
+const LOGS_ROUTE = "/llm_logs" as Route;
 
 const menuItems = [
   {
@@ -43,9 +46,9 @@ const menuItems = [
     label: <Link href="/memory">记忆中心</Link>,
   },
   {
-    key: "logs",
+    key: "llm_logs",
     icon: <ClockCircleOutlined />,
-    label: <Link href="/logs">回复日志</Link>,
+    label: <Link href={LOGS_ROUTE}>回复日志</Link>,
   },
 ];
 
