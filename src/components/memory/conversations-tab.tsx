@@ -7,6 +7,7 @@ import {
   SearchOutlined,
 } from "@ant-design/icons";
 import {
+  App,
   Alert,
   Button,
   Card,
@@ -24,7 +25,6 @@ import {
   Space,
   Tag,
   Typography,
-  message,
 } from "antd";
 import { useCallback, useEffect, useState } from "react";
 
@@ -65,6 +65,7 @@ type ConversationCardData = {
 };
 
 export function ConversationsTab() {
+  const { message } = App.useApp();
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [groupKeyword, setGroupKeyword] = useState("");
   const [page, setPage] = useState(1);

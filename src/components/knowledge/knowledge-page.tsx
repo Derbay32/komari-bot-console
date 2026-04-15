@@ -7,6 +7,7 @@ import {
   SearchOutlined,
 } from "@ant-design/icons";
 import {
+  App,
   Button,
   Card,
   Drawer,
@@ -14,7 +15,6 @@ import {
   Form,
   Input,
   InputNumber,
-  message,
   Modal,
   Popconfirm,
   Select,
@@ -56,6 +56,7 @@ const categoryColorMap: Record<KnowledgeCategory, string> = {
 };
 
 export function KnowledgePage() {
+  const { message } = App.useApp();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [filters, setFilters] = useState<{

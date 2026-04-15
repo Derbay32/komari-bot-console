@@ -2,6 +2,7 @@
 
 import { DeleteOutlined, EditOutlined, SearchOutlined } from "@ant-design/icons";
 import {
+  App,
   Alert,
   Button,
   Card,
@@ -16,7 +17,6 @@ import {
   Space,
   Tag,
   Typography,
-  message,
 } from "antd";
 import { useCallback, useState } from "react";
 
@@ -59,6 +59,7 @@ type UserProfileGroupSummary = {
 const EMPTY_GROUP_SUMMARIES: UserProfileGroupSummary[] = [];
 
 export function UserProfilesTab() {
+  const { message } = App.useApp();
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [groupKeyword, setGroupKeyword] = useState("");
 
