@@ -201,10 +201,183 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/komari-management-config/v1/resources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Config Resources */
+        get: operations["list_config_resources_api_komari_management_config_v1_resources_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/komari-management-config/v1/resources/{resource_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Config Resource */
+        get: operations["get_config_resource_api_komari_management_config_v1_resources__resource_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/komari-management-config/v1/resources/{resource_id}/reload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reload Config Resource */
+        post: operations["reload_config_resource_api_komari_management_config_v1_resources__resource_id__reload_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/komari-management-config/v1/resources/{resource_id}/fields/{field_name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Config Field */
+        patch: operations["update_config_field_api_komari_management_config_v1_resources__resource_id__fields__field_name__patch"];
+        trace?: never;
+    };
+    "/api/komari-management-prompt/v1/resources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Prompt Resources */
+        get: operations["list_prompt_resources_api_komari_management_prompt_v1_resources_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/komari-management-prompt/v1/resources/{resource_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Prompt Resource */
+        get: operations["get_prompt_resource_api_komari_management_prompt_v1_resources__resource_id__get"];
+        /** Replace Prompt Resource */
+        put: operations["replace_prompt_resource_api_komari_management_prompt_v1_resources__resource_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/komari-management-prompt/v1/resources/{resource_id}/fields/{field_name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Prompt Field */
+        patch: operations["update_prompt_field_api_komari_management_prompt_v1_resources__resource_id__fields__field_name__patch"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * ConfigFieldUpdateRequest
+         * @description 配置字段更新请求。
+         */
+        ConfigFieldUpdateRequest: {
+            /**
+             * Value
+             * @description 新的字段值
+             */
+            value: unknown;
+        };
+        /**
+         * ConfigResourceDetail
+         * @description 配置资源详情。
+         */
+        ConfigResourceDetail: {
+            /** Resource Id */
+            resource_id: string;
+            /** Display Name */
+            display_name: string;
+            /** Config File */
+            config_file: string;
+            /** Fields */
+            fields: string[];
+            /** Values */
+            values: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * ConfigResourceListResponse
+         * @description 配置资源列表响应。
+         */
+        ConfigResourceListResponse: {
+            /** Items */
+            items: components["schemas"]["ConfigResourceSummary"][];
+            /** Total */
+            total: number;
+        };
+        /**
+         * ConfigResourceSummary
+         * @description 配置资源摘要。
+         */
+        ConfigResourceSummary: {
+            /** Resource Id */
+            resource_id: string;
+            /** Display Name */
+            display_name: string;
+            /** Config File */
+            config_file: string;
+            /** Fields */
+            fields: string[];
+        };
         /**
          * ConversationCreateRequest
          * @description 创建对话记忆请求。
@@ -454,6 +627,59 @@ export interface components {
             limit: number;
             /** Offset */
             offset: number;
+        };
+        /**
+         * PromptFieldUpdateRequest
+         * @description 提示词字段更新请求。
+         */
+        PromptFieldUpdateRequest: {
+            /**
+             * Value
+             * @description 新的提示词内容
+             */
+            value: string;
+        };
+        /**
+         * PromptResourceDetail
+         * @description 提示词资源详情。
+         */
+        PromptResourceDetail: {
+            /** Resource Id */
+            resource_id: string;
+            /** Display Name */
+            display_name: string;
+            /** File Path */
+            file_path: string;
+            /** Fields */
+            fields: string[];
+            /** Values */
+            values: {
+                [key: string]: string;
+            };
+        };
+        /**
+         * PromptResourceListResponse
+         * @description 提示词资源列表响应。
+         */
+        PromptResourceListResponse: {
+            /** Items */
+            items: components["schemas"]["PromptResourceSummary"][];
+            /** Total */
+            total: number;
+        };
+        /**
+         * PromptResourceSummary
+         * @description 提示词资源摘要。
+         */
+        PromptResourceSummary: {
+            /** Resource Id */
+            resource_id: string;
+            /** Display Name */
+            display_name: string;
+            /** File Path */
+            file_path: string;
+            /** Fields */
+            fields: string[];
         };
         /**
          * ReplyLogDetail
@@ -1282,6 +1508,248 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReplyLogDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_config_resources_api_komari_management_config_v1_resources_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfigResourceListResponse"];
+                };
+            };
+        };
+    };
+    get_config_resource_api_komari_management_config_v1_resources__resource_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfigResourceDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reload_config_resource_api_komari_management_config_v1_resources__resource_id__reload_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfigResourceDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_config_field_api_komari_management_config_v1_resources__resource_id__fields__field_name__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                resource_id: string;
+                field_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfigFieldUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfigResourceDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_prompt_resources_api_komari_management_prompt_v1_resources_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromptResourceListResponse"];
+                };
+            };
+        };
+    };
+    get_prompt_resource_api_komari_management_prompt_v1_resources__resource_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromptResourceDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    replace_prompt_resource_api_komari_management_prompt_v1_resources__resource_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromptResourceDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_prompt_field_api_komari_management_prompt_v1_resources__resource_id__fields__field_name__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                resource_id: string;
+                field_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromptFieldUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromptResourceDetail"];
                 };
             };
             /** @description Validation Error */
