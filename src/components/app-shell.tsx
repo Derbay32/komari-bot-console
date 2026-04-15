@@ -5,11 +5,13 @@ import {
   ClockCircleOutlined,
   DatabaseOutlined,
   RobotOutlined,
+  SettingOutlined,
 } from "@ant-design/icons";
 import { Layout, Menu, Space, Typography } from "antd";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Route } from "next";
+import type { ItemType } from "antd/es/menu/interface";
 
 const { Content, Header, Sider } = Layout;
 
@@ -17,6 +19,7 @@ const routeMap: Record<string, string> = {
   "/": "overview",
   "/knowledge": "knowledge",
   "/memory": "memory",
+  "/config": "config",
   "/llm_logs": "logs",
 };
 
@@ -24,12 +27,14 @@ const titleMap: Record<string, string> = {
   "/": "总览",
   "/knowledge": "知识库",
   "/memory": "记忆中心",
+  "/config": "配置管理",
   "/llm_logs": "回复日志",
 };
 
+const CONFIG_ROUTE = "/config" as Route;
 const LOGS_ROUTE = "/llm_logs" as Route;
 
-const menuItems = [
+const menuItems: ItemType[] = [
   {
     key: "overview",
     icon: <RobotOutlined />,
@@ -44,6 +49,11 @@ const menuItems = [
     key: "memory",
     icon: <DatabaseOutlined />,
     label: <Link href="/memory">记忆中心</Link>,
+  },
+  {
+    key: "config",
+    icon: <SettingOutlined />,
+    label: <Link href={CONFIG_ROUTE}>配置管理</Link>,
   },
   {
     key: "llm_logs",
