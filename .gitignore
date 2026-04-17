@@ -28,8 +28,15 @@ lerna-debug.log*
 
 # others
 /openapi
+secret.json
+
+# Kilo Code
 /.kilo
 /.codeartsdoer
 /.playwright-mcp
-secret.json
+
+# VS Code
+.vscode
+
+# OS
 .DS_Store
