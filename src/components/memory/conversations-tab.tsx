@@ -160,7 +160,7 @@ export function ConversationsTab() {
         );
       }
     },
-    [createMutation, editingRecord, updateMutation],
+    [createMutation, editingRecord, message, updateMutation],
   );
 
   const handleDelete = useCallback(
@@ -172,7 +172,7 @@ export function ConversationsTab() {
         message.error(getRequestErrorMessage(error, "对话删除失败"));
       }
     },
-    [deleteMutation],
+    [deleteMutation, message],
   );
 
   return (

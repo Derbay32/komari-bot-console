@@ -169,7 +169,7 @@ export function UserProfilesTab() {
         message.error(getRequestErrorMessage(error, "用户画像更新失败"));
       }
     },
-    [editRecord, putMutation],
+    [editRecord, message, putMutation],
   );
 
   const handleDelete = useCallback(
@@ -193,7 +193,7 @@ export function UserProfilesTab() {
         message.error(getRequestErrorMessage(error, "用户画像删除失败"));
       }
     },
-    [deleteMutation, handleCloseDetail, selectedUser],
+    [deleteMutation, handleCloseDetail, message, selectedUser],
   );
 
   return (

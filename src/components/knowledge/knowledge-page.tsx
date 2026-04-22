@@ -118,7 +118,7 @@ export function KnowledgePage() {
         ),
       );
     }
-  }, [editingRecord, createMutation, updateMutation]);
+  }, [editingRecord, createMutation, message, updateMutation]);
 
   const handleDelete = useCallback(
     async (kid: number) => {
@@ -129,7 +129,7 @@ export function KnowledgePage() {
         message.error(getRequestErrorMessage(error, "知识删除失败"));
       }
     },
-    [deleteMutation],
+    [deleteMutation, message],
   );
 
   const handleSearch = useCallback(async () => {
@@ -143,7 +143,7 @@ export function KnowledgePage() {
     } catch (error) {
       message.error(getRequestErrorMessage(error, "知识搜索失败"));
     }
-  }, [searchQuery, searchLimit, searchMutation]);
+  }, [message, searchLimit, searchMutation, searchQuery]);
 
   const columns = [
     {
