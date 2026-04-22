@@ -1,0 +1,127 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e7]:
+          - img "robot" [ref=e10]:
+            - img [ref=e11]
+          - generic [ref=e14]:
+            - heading "Komari Console" [level=4] [ref=e15]
+            - text: 管理知识、记忆与 LLM 行为
+        - menu [ref=e16]:
+          - menuitem "robot 总览" [ref=e17] [cursor=pointer]:
+            - img "robot" [ref=e18]:
+              - img [ref=e19]
+            - link "总览" [ref=e22]:
+              - /url: /
+          - menuitem "book 知识库" [ref=e23] [cursor=pointer]:
+            - img "book" [ref=e24]:
+              - img [ref=e25]
+            - link "知识库" [ref=e28]:
+              - /url: /knowledge
+          - menuitem "book 帮助文档" [ref=e29] [cursor=pointer]:
+            - img "book" [ref=e30]:
+              - img [ref=e31]
+            - link "帮助文档" [ref=e34]:
+              - /url: /help
+          - menuitem "database 记忆中心" [ref=e35] [cursor=pointer]:
+            - img "database" [ref=e36]:
+              - img [ref=e37]
+            - link "记忆中心" [ref=e40]:
+              - /url: /memory
+          - menuitem "notification 公告通知" [ref=e41] [cursor=pointer]:
+            - img "notification" [ref=e42]:
+              - img [ref=e43]
+            - link "公告通知" [ref=e46]:
+              - /url: /announce
+          - menuitem "setting 配置管理" [ref=e47] [cursor=pointer]:
+            - img "setting" [ref=e48]:
+              - img [ref=e49]
+            - link "配置管理" [ref=e52]:
+              - /url: /config
+          - menuitem "clock-circle 回复日志" [ref=e53] [cursor=pointer]:
+            - img "clock-circle" [ref=e54]:
+              - img [ref=e55]
+            - link "回复日志" [ref=e59]:
+              - /url: /llm_logs
+    - generic [ref=e60]:
+      - banner [ref=e61]:
+        - heading "配置管理" [level=4] [ref=e63]
+        - radiogroup "segmented control" [ref=e65]:
+          - generic [ref=e66]:
+            - generic [ref=e68] [cursor=pointer]:
+              - radio "sun 浅色" [checked]
+              - generic [ref=e70]:
+                - img "sun" [ref=e71]
+                - generic [ref=e74]: 浅色
+            - generic [ref=e75] [cursor=pointer]:
+              - radio "moon 深色"
+              - generic [ref=e77]:
+                - img "moon" [ref=e78]
+                - generic [ref=e81]: 深色
+            - generic [ref=e82] [cursor=pointer]:
+              - radio "robot 跟随系统"
+              - generic [ref=e84]:
+                - img "robot" [ref=e85]
+                - generic [ref=e88]: 跟随系统
+      - main [ref=e89]:
+        - generic [ref=e92]:
+          - generic [ref=e93]:
+            - generic [ref=e95]:
+              - generic [ref=e96]: 配置资源
+              - button "收起配置资源栏" [ref=e98] [cursor=pointer]:
+                - img "menu-fold" [ref=e100]
+                - generic [ref=e103]: 收起
+            - menu [ref=e105]:
+              - menuitem "Komari Management" [ref=e106] [cursor=pointer]:
+                - strong [ref=e110]: Komari Management
+              - menuitem "Komari Memory" [ref=e111] [cursor=pointer]:
+                - strong [ref=e115]: Komari Memory
+              - menuitem "Komari Knowledge" [ref=e116] [cursor=pointer]:
+                - strong [ref=e120]: Komari Knowledge
+              - menuitem "Komari Help" [ref=e121] [cursor=pointer]:
+                - strong [ref=e125]: Komari Help
+              - menuitem "LLM Provider" [ref=e126] [cursor=pointer]:
+                - strong [ref=e130]: LLM Provider
+              - menuitem "Embedding Provider" [ref=e131] [cursor=pointer]:
+                - strong [ref=e135]: Embedding Provider
+              - menuitem "Group History Summary" [ref=e136] [cursor=pointer]:
+                - strong [ref=e140]: Group History Summary
+              - menuitem "Komari Decision" [ref=e141] [cursor=pointer]:
+                - strong [ref=e145]: Komari Decision
+              - menuitem "Komari Sentry" [ref=e146] [cursor=pointer]:
+                - strong [ref=e150]: Komari Sentry
+              - menuitem "SR" [ref=e151] [cursor=pointer]:
+                - strong [ref=e155]: SR
+              - menuitem "User Data" [ref=e156] [cursor=pointer]:
+                - strong [ref=e160]: User Data
+          - generic [ref=e161]:
+            - generic [ref=e291]:
+              - generic [ref=e293]:
+                - generic [ref=e294]: Komari Management
+                - button "reload 重载配置" [ref=e296] [cursor=pointer]
+              - generic [ref=e303]:
+                - generic [ref=e305]
+                - generic [ref=e311]
+                - generic [ref=e317]: 字段数 6
+            - generic [ref=e319]:
+              - generic [ref=e322]: 字段列表 (6)
+              - table [ref=e330]:
+                - rowgroup [ref=e336]
+                - rowgroup [ref=e342]
+  - generic [ref=e172]:
+    - img [ref=e174]
+    - button "Open Tanstack query devtools" [ref=e222] [cursor=pointer]:
+      - img [ref=e223]
+  - generic [ref=e275] [cursor=pointer]:
+    - button "Open Next.js Dev Tools" [ref=e276]:
+      - img [ref=e277]
+    - generic [ref=e280]:
+      - button "Open issues overlay" [ref=e281]:
+        - generic [ref=e282]:
+          - generic [ref=e283]: "0"
+          - generic [ref=e284]: "1"
+        - generic [ref=e285]: Issue
+      - button "Collapse issues badge" [ref=e286]:
+        - img [ref=e287]
+  - alert [ref=e289]

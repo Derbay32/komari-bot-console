@@ -120,7 +120,6 @@ export function ConfigPage() {
     }
 
     try {
-      form.setFieldsValue({ value: getPrimitiveFormValue(primitiveField) });
       const values = await form.validateFields();
       await updateFieldMutation.mutateAsync({
         resourceId: activeResourceId,
@@ -404,7 +403,12 @@ export function ConfigPage() {
         destroyOnHidden
       >
         {primitiveField ? (
-          <Form form={form} layout="vertical">
+          <Form
+            key={`${primitiveField.fieldName}-${primitiveField.mode}-${String(primitiveField.value)}`}
+            form={form}
+            layout="vertical"
+            initialValues={{ value: getPrimitiveFormValue(primitiveField) }}
+          >
             <Form.Item label="字段名">
               <Input value={primitiveField.fieldName} disabled />
             </Form.Item>
