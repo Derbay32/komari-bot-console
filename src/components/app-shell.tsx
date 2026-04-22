@@ -4,6 +4,7 @@ import {
   BookOutlined,
   ClockCircleOutlined,
   DatabaseOutlined,
+  NotificationOutlined,
   RobotOutlined,
   SettingOutlined,
 } from "@ant-design/icons";
@@ -20,6 +21,7 @@ const routeMap: Record<string, string> = {
   "/knowledge": "knowledge",
   "/help": "help",
   "/memory": "memory",
+  "/announce": "announce",
   "/config": "config",
   "/llm_logs": "logs",
 };
@@ -29,11 +31,13 @@ const titleMap: Record<string, string> = {
   "/knowledge": "知识库",
   "/help": "帮助文档",
   "/memory": "记忆中心",
+  "/announce": "公告通知",
   "/config": "配置管理",
   "/llm_logs": "回复日志",
 };
 
 const CONFIG_ROUTE = "/config" as Route;
+const ANNOUNCE_ROUTE = "/announce" as Route;
 const HELP_ROUTE = "/help" as Route;
 const LOGS_ROUTE = "/llm_logs" as Route;
 
@@ -57,6 +61,11 @@ const menuItems: ItemType[] = [
     key: "memory",
     icon: <DatabaseOutlined />,
     label: <Link href="/memory">记忆中心</Link>,
+  },
+  {
+    key: "announce",
+    icon: <NotificationOutlined />,
+    label: <Link href={ANNOUNCE_ROUTE}>公告通知</Link>,
   },
   {
     key: "config",
