@@ -40,3 +40,4 @@ secret.json
 
 # OS
 .DS_Store
+/others
