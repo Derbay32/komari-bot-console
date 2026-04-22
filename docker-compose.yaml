@@ -1,8 +1,5 @@
 services:
   komari-bot-console:
-    build:
-      context: .
-      dockerfile: Dockerfile
     image: komari-bot-console:latest
     container_name: komari-bot-console
     restart: unless-stopped

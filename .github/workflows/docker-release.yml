@@ -33,6 +33,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: 准备镜像与版本变量
+        id: prepare
+        shell: bash
+        run: |
+          RAW_TAG="${{ github.event.release.tag_name || github.ref_name }}"
+          NORMALIZED_TAG="${RAW_TAG#v}"
+          LOWER_OWNER="${GITHUB_REPOSITORY_OWNER,,}"
+
+          echo "raw_tag=${RAW_TAG}" >> "$GITHUB_OUTPUT"
+          echo "normalized_tag=${NORMALIZED_TAG}" >> "$GITHUB_OUTPUT"
+          echo "image_repo=ghcr.io/${LOWER_OWNER}/komari-bot-console" >> "$GITHUB_OUTPUT"
+
       - name: 创建预发布 Release
         if: github.event_name == 'push'
         env:
@@ -51,11 +63,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          export TAG_NAME="${{ github.event.release.tag_name || github.ref_name }}"
-          export IMAGE_NAME="ghcr.io/${{ github.repository_owner }}/komari-bot-console:${TAG_NAME}"
+          export TAG_NAME="${{ steps.prepare.outputs.raw_tag }}"
+          export IMAGE_NAME="${{ steps.prepare.outputs.image_repo }}:${{ steps.prepare.outputs.normalized_tag }}"
 
           mkdir -p komari-bot-console-deploy
           cp docker-compose.yaml komari-bot-console-deploy/docker-compose.yaml
+          cp .env.example komari-bot-console-deploy/.env.example
 
           python - <<'PY'
           import os
@@ -70,7 +83,7 @@ jobs:
           compose_path.write_text(content)
           PY
 
-          tar -czf "komari-bot-console-${TAG_NAME}.tar.gz" -C komari-bot-console-deploy docker-compose.yaml
+          tar -czf "komari-bot-console-${TAG_NAME}.tar.gz" -C komari-bot-console-deploy docker-compose.yaml .env.example
           gh release upload "${TAG_NAME}" "komari-bot-console-${TAG_NAME}.tar.gz" --clobber
 
       - name: 判断是否为正式发布
@@ -88,7 +101,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            ghcr.io/${{ github.repository_owner }}/komari-bot-console
+            ${{ steps.prepare.outputs.image_repo }}
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
