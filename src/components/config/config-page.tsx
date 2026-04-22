@@ -233,16 +233,9 @@ export function ConfigPage() {
         />
       ) : null}
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(260px, 280px) minmax(0, 1fr)",
-          gap: 16,
-          alignItems: "start",
-        }}
-      >
+      <div className="config-page__layout">
         <Card
-          className="glass-card"
+          className="glass-card config-page__resource-card"
           variant="borderless"
           title="配置资源"
           extra={<Tag color="blue">{resources.length} 项</Tag>}
@@ -290,7 +283,12 @@ export function ConfigPage() {
           )}
         </Card>
 
-        <Space orientation="vertical" size={16} style={{ display: "flex", minWidth: 0 }}>
+        <Space
+          className="config-page__detail"
+          orientation="vertical"
+          size={16}
+          style={{ display: "flex", minWidth: 0 }}
+        >
           {!activeResourceId && !resourcesQuery.isPending ? (
             <Card className="glass-card" variant="borderless">
               <Empty description="请选择一个配置资源" />
@@ -315,7 +313,7 @@ export function ConfigPage() {
           {selectedResource ? (
             <>
               <Card
-                className="glass-card"
+                className="glass-card config-page__summary-card"
                 variant="borderless"
                 title={selectedResource.display_name}
                 extra={

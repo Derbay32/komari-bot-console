@@ -293,6 +293,21 @@ a {
   padding: 20px;
 }
 
+.config-page__layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 280px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.config-page__resource-card {
+  min-width: 0;
+}
+
+.config-page__detail {
+  min-width: 0;
+}
+
 @media (max-width: 992px) {
   .console-shell {
     min-height: 100dvh;
@@ -323,6 +338,10 @@ a {
 
   .knowledge-page__toolbar {
     gap: 12px;
+  }
+
+  .config-page__layout {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -405,5 +424,24 @@ a {
   .logs-page__table-card .ant-table-pagination,
   .knowledge-page__table-card .ant-table-pagination {
     margin-bottom: 0;
+  }
+
+  .config-page__resource-card .ant-card-head,
+  .config-page__summary-card .ant-card-head {
+    align-items: flex-start;
+  }
+
+  .config-page__resource-card .ant-card-head-wrapper,
+  .config-page__summary-card .ant-card-head-wrapper {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .config-page__summary-card .ant-card-extra {
+    margin-inline-start: 0;
+  }
+
+  .config-page__summary-card .ant-card-extra .ant-btn {
+    width: 100%;
   }
 }
