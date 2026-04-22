@@ -1,0 +1,12 @@
+services:
+  komari-bot-console:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: komari-bot-console:latest
+    container_name: komari-bot-console
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
