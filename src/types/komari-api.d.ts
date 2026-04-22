@@ -468,6 +468,8 @@ export interface components {
             resource_id: string;
             /** Display Name */
             display_name: string;
+            /** Description */
+            description?: string;
             /** Config File */
             config_file: string;
             /** Fields */
@@ -500,6 +502,8 @@ export interface components {
             resource_id: string;
             /** Display Name */
             display_name: string;
+            /** Description */
+            description?: string;
             /** Config File */
             config_file: string;
             /** Fields */

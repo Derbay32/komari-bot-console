@@ -31,7 +31,7 @@ type MaintenanceAnnounceRequest = components["schemas"]["MaintenanceAnnounceRequ
 type MaintenanceAnnounceResponse = components["schemas"]["MaintenanceAnnounceResponse"];
 
 type AnnounceFormValues = Omit<MaintenanceAnnounceRequest, "scheduled_time"> & {
-  scheduled_time: Dayjs;
+  scheduled_time: [Dayjs, Dayjs];
 };
 
 export function AnnouncePage() {
@@ -42,8 +42,25 @@ export function AnnouncePage() {
 
   const groupsQuery = useGroupList();
   const sendMutation = useSendMaintenanceAnnounce();
-  const selectedGroupIds = Form.useWatch("group_ids", form) ?? [];
+  const watchedGroupIds = Form.useWatch("group_ids", form);
+  const selectedGroupIds = useMemo(() => watchedGroupIds ?? [], [watchedGroupIds]);
   const groups = useMemo(() => groupsQuery.data?.groups ?? [], [groupsQuery.data?.groups]);
+  const groupNameMap = useMemo(
+    () => new Map(groups.map((group) => [group.group_id, group.group_name] as const)),
+    [groups],
+  );
+  const selectedGroupText = useMemo(() => {
+    if (!selectedGroupIds.length) {
+      return "";
+    }
+
+    return selectedGroupIds
+      .map((groupId) => {
+        const groupName = groupNameMap.get(groupId);
+        return groupName ? `${groupName} (${groupId})` : String(groupId);
+      })
+      .join("、");
+  }, [groupNameMap, selectedGroupIds]);
 
   const filteredGroups = useMemo(() => {
     const keyword = groupKeyword.trim().toLowerCase();
@@ -56,11 +73,6 @@ export function AnnouncePage() {
       return name.includes(keyword) || String(group.group_id).includes(keyword);
     });
   }, [groupKeyword, groups]);
-
-  const groupNameMap = useMemo(
-    () => new Map(groups.map((group) => [group.group_id, group.group_name] as const)),
-    [groups],
-  );
 
   const groupColumns: TableColumnsType<GroupInfo> = [
     {
@@ -115,7 +127,7 @@ export function AnnouncePage() {
     const payload: MaintenanceAnnounceRequest = {
       title: values.title.trim(),
       content: values.content.trim(),
-      scheduled_time: values.scheduled_time.toISOString(),
+      scheduled_time: `${values.scheduled_time[0].format("YYYY-MM-DD HH:mm")} ~ ${values.scheduled_time[1].format("YYYY-MM-DD HH:mm")}`,
       group_ids: values.group_ids,
     };
 
@@ -185,13 +197,27 @@ export function AnnouncePage() {
           <Form.Item
             name="scheduled_time"
             label="预定时间"
-            rules={[{ required: true, message: "请选择预定时间" }]}
+            extra="按分钟选择维护时间区间。"
+            rules={[
+              { required: true, message: "请选择预定时间区间" },
+              {
+                validator: (_rule, value: [Dayjs, Dayjs] | undefined) => {
+                  if (!value || value.length !== 2) {
+                    return Promise.resolve();
+                  }
+
+                  return value[0].isBefore(value[1])
+                    ? Promise.resolve()
+                    : Promise.reject(new Error("结束时间必须晚于开始时间"));
+                },
+              },
+            ]}
           >
-            <DatePicker
-              showTime
+            <DatePicker.RangePicker
+              showTime={{ format: "HH:mm" }}
               style={{ width: "100%" }}
-              placeholder="选择维护开始时间"
-              format="YYYY-MM-DD HH:mm:ss"
+              placeholder={["选择开始时间", "选择结束时间"]}
+              format="YYYY-MM-DD HH:mm"
             />
           </Form.Item>
 
@@ -201,6 +227,11 @@ export function AnnouncePage() {
             extra={`已选 ${selectedGroupIds.length} 个群，可按群号或群名筛选。`}
           >
             <Space orientation="vertical" size={12} style={{ display: "flex" }}>
+              <Input
+                readOnly
+                value={selectedGroupText}
+                placeholder="勾选后将在这里显示已选目标群"
+              />
               <Input
                 placeholder="筛选群号 / 群名"
                 allowClear
@@ -264,12 +295,20 @@ export function AnnouncePage() {
             <Alert
               type={lastResult.failed_count ? "warning" : "success"}
               showIcon
-              message={`本次共处理 ${lastResult.total} 个群，成功 ${lastResult.success_count} 个，失败 ${lastResult.failed_count} 个。`}
+              title={`本次共处理 ${lastResult.total} 个群，成功 ${lastResult.success_count} 个，失败 ${lastResult.failed_count} 个。`}
             />
             <Space size={16} wrap>
               <Statistic title="总数" value={lastResult.total} />
-              <Statistic title="成功" value={lastResult.success_count} valueStyle={{ color: "#3f8600" }} />
-              <Statistic title="失败" value={lastResult.failed_count} valueStyle={{ color: "#cf1322" }} />
+              <Statistic
+                title="成功"
+                value={lastResult.success_count}
+                styles={{ content: { color: "#3f8600" } }}
+              />
+              <Statistic
+                title="失败"
+                value={lastResult.failed_count}
+                styles={{ content: { color: "#cf1322" } }}
+              />
             </Space>
             <Table<AnnounceResult>
               rowKey="group_id"

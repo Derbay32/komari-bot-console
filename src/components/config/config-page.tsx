@@ -36,6 +36,7 @@ import type { components } from "@/types/komari-api";
 type ConfigResourceSummary = components["schemas"]["ConfigResourceSummary"];
 type ConfigFieldRow = {
   fieldName: string;
+  description?: string;
   value: unknown;
 };
 
@@ -83,6 +84,7 @@ export function ConfigPage() {
 
     return selectedResource.fields.map((fieldName) => ({
       fieldName,
+      description: selectedResource.field_descriptions?.[fieldName],
       value: selectedResource.values[fieldName],
     }));
   }, [selectedResource]);
@@ -186,6 +188,23 @@ export function ConfigPage() {
         render: (value: unknown) => renderConfigValue(value),
       },
       {
+        title: "说明",
+        dataIndex: "description",
+        key: "description",
+        width: 320,
+        render: (description?: string) =>
+          description ? (
+            <Typography.Paragraph
+              style={{ marginBottom: 0, whiteSpace: "pre-wrap" }}
+              ellipsis={{ rows: 2, expandable: true, symbol: "展开" }}
+            >
+              {description}
+            </Typography.Paragraph>
+          ) : (
+            <Typography.Text className="subtle-text">暂无说明</Typography.Text>
+          ),
+      },
+      {
         title: "操作",
         key: "actions",
         width: 120,
@@ -247,6 +266,15 @@ export function ConfigPage() {
                     }}
                   >
                     <Typography.Text strong>{resource.display_name}</Typography.Text>
+                    {resource.description ? (
+                      <Typography.Text
+                        type="secondary"
+                        style={{ fontSize: 12 }}
+                        ellipsis={{ tooltip: resource.description }}
+                      >
+                        {resource.description}
+                      </Typography.Text>
+                    ) : null}
                   </div>
                 ),
               }))}
@@ -316,6 +344,14 @@ export function ConfigPage() {
                     <Typography.Text strong>配置文件：</Typography.Text>
                     <Typography.Text>{selectedResource.config_file}</Typography.Text>
                   </div>
+                  {selectedResource.description ? (
+                    <div>
+                      <Typography.Text strong>配置说明：</Typography.Text>
+                      <Typography.Paragraph style={{ marginTop: 4, marginBottom: 0 }}>
+                        {selectedResource.description}
+                      </Typography.Paragraph>
+                    </div>
+                  ) : null}
                   <Space wrap size={[8, 8]}>
                     <Tag color="geekblue">字段数 {selectedResource.fields.length}</Tag>
                   </Space>
@@ -353,6 +389,12 @@ export function ConfigPage() {
           <Form form={form} layout="vertical">
             <Form.Item label="字段名">
               <Input value={primitiveField.fieldName} disabled />
+            </Form.Item>
+            <Form.Item label="字段说明">
+              <Input
+                value={selectedResource?.field_descriptions?.[primitiveField.fieldName] ?? "暂无说明"}
+                disabled
+              />
             </Form.Item>
             {primitiveField.mode === "string" ? (
               <Form.Item
@@ -394,6 +436,7 @@ export function ConfigPage() {
           open
           title={`编辑字段 - ${jsonField.fieldName}`}
           value={jsonField.value}
+          description={selectedResource?.field_descriptions?.[jsonField.fieldName]}
           onCancel={() => setJsonField(null)}
           onOk={handleSubmitJson}
           confirmLoading={updateFieldMutation.isPending}
