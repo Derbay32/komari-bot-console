@@ -344,7 +344,7 @@ function LogDetailContent({ detail }: { detail: ReplyLogDetail }) {
       {detail.error !== undefined && detail.error !== null && (
         <div>
           <Typography.Text strong>错误:</Typography.Text>
-          <pre style={{ ...codeBlockStyle, color: "#ff4d4f" }}>{detail.error}</pre>
+          <pre style={{ ...codeBlockStyle, color: "var(--error-text)" }}>{detail.error}</pre>
         </div>
       )}
     </div>
@@ -352,12 +352,14 @@ function LogDetailContent({ detail }: { detail: ReplyLogDetail }) {
 }
 
 const codeBlockStyle: React.CSSProperties = {
-  background: "#f5f5f5",
+  background: "var(--code-bg)",
+  border: "1px solid var(--code-border)",
   padding: 12,
   borderRadius: 8,
   overflow: "auto",
   maxHeight: 300,
   fontSize: 12,
+  color: "var(--text-main)",
   whiteSpace: "pre-wrap",
   wordBreak: "break-all",
 };

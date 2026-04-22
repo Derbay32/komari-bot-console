@@ -4,15 +4,18 @@ import {
   BookOutlined,
   ClockCircleOutlined,
   DatabaseOutlined,
+  MoonOutlined,
   NotificationOutlined,
   RobotOutlined,
   SettingOutlined,
+  SunOutlined,
 } from "@ant-design/icons";
-import { Layout, Menu, Space, Typography } from "antd";
+import { Layout, Menu, Segmented, Space, Typography } from "antd";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Route } from "next";
 import type { ItemType } from "antd/es/menu/interface";
+import { useTheme } from "next-themes";
 
 const { Content, Header, Sider } = Layout;
 
@@ -81,8 +84,11 @@ const menuItems: ItemType[] = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { resolvedTheme, setTheme, theme } = useTheme();
   const selectedKey = routeMap[pathname] ?? "overview";
   const pageTitle = titleMap[pathname] ?? "管理后台";
+  const currentTheme =
+    theme === "light" || theme === "dark" || theme === "system" ? theme : "system";
 
   return (
     <Layout className="console-shell">
@@ -114,6 +120,43 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Typography.Title level={4} style={{ margin: 0 }}>
             {pageTitle}
           </Typography.Title>
+          <div className="console-header__actions">
+            <Segmented<"light" | "dark" | "system">
+              className="theme-toggle"
+              value={currentTheme}
+              onChange={(value) => setTheme(value)}
+              options={[
+                {
+                  label: (
+                    <span>
+                      <SunOutlined /> 浅色
+                    </span>
+                  ),
+                  value: "light",
+                },
+                {
+                  label: (
+                    <span>
+                      <MoonOutlined /> 深色
+                    </span>
+                  ),
+                  value: "dark",
+                },
+                {
+                  label: (
+                    <span>
+                      <RobotOutlined />
+                      {" 跟随系统"}
+                      {resolvedTheme
+                        ? ` · ${resolvedTheme === "dark" ? "当前深色" : "当前浅色"}`
+                        : ""}
+                    </span>
+                  ),
+                  value: "system",
+                },
+              ]}
+            />
+          </div>
         </Header>
         <Content className="console-content">{children}</Content>
       </Layout>

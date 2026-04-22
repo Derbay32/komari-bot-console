@@ -1,13 +1,15 @@
 "use client";
 
-import { Modal } from "antd";
+import { Modal, Typography } from "antd";
 import { useCallback, useState } from "react";
 import Editor from "@monaco-editor/react";
+import { useTheme } from "next-themes";
 
 interface JsonEditorModalProps {
   open: boolean;
   title: string;
   value: Record<string, unknown>;
+  description?: string;
   onCancel: () => void;
   onOk: (value: Record<string, unknown>) => void;
   confirmLoading?: boolean;
@@ -17,10 +19,12 @@ export function JsonEditorModal({
   open,
   title,
   value,
+  description,
   onCancel,
   onOk,
   confirmLoading,
 }: JsonEditorModalProps) {
+  const { resolvedTheme } = useTheme();
   const [text, setText] = useState(() => JSON.stringify(value, null, 2));
   const [error, setError] = useState<string | null>(null);
 
@@ -72,11 +76,22 @@ export function JsonEditorModal({
       destroyOnHidden
       afterOpenChange={handleOpenChange}
     >
-      <div style={{ border: "1px solid #d9d9d9", borderRadius: 8, overflow: "hidden" }}>
+      {description ? (
+        <Typography.Paragraph type="secondary" style={{ whiteSpace: "pre-wrap" }}>
+          {description}
+        </Typography.Paragraph>
+      ) : null}
+      <div
+        style={{
+          border: "1px solid var(--code-border)",
+          borderRadius: 8,
+          overflow: "hidden",
+        }}
+      >
         <Editor
           height="400px"
           language="json"
-          theme="vs"
+          theme={resolvedTheme === "dark" ? "vs-dark" : "vs"}
           value={text}
           onChange={handleChange}
           options={{
@@ -88,7 +103,7 @@ export function JsonEditorModal({
         />
       </div>
       {error && (
-        <div style={{ color: "#ff4d4f", marginTop: 8, fontSize: 12 }}>{error}</div>
+        <div style={{ color: "var(--error-text)", marginTop: 8, fontSize: 12 }}>{error}</div>
       )}
     </Modal>
   );

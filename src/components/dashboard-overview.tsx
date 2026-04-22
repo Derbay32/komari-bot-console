@@ -97,7 +97,7 @@ export function DashboardOverview() {
                   title={item.title}
                   value={item.value}
                   loading={item.loading}
-                  styles={{ content: { color: "#0f3160" } }}
+                  styles={{ content: { color: "var(--text-main)" } }}
                 />
               </Card>
             </Link>
@@ -118,7 +118,7 @@ export function DashboardOverview() {
               <div
                 key={`${item.date}-${item.line_number}`}
                 className="log-item"
-                style={{ padding: "12px 0", borderBottom: "1px solid #f0f0f0" }}
+                style={{ padding: "12px 0", borderBottom: "1px solid var(--border-soft)" }}
               >
                 <Tag color={item.status === "success" ? "success" : "error"}>
                   {item.status}
