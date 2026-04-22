@@ -13,6 +13,7 @@ import {
   Drawer,
   Empty,
   Form,
+  Grid,
   Input,
   InputNumber,
   Modal,
@@ -57,6 +58,8 @@ const categoryColorMap: Record<KnowledgeCategory, string> = {
 
 export function KnowledgePage() {
   const { message } = App.useApp();
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [filters, setFilters] = useState<{
@@ -212,11 +215,12 @@ export function KnowledgePage() {
   ];
 
   return (
-    <Space orientation="vertical" size={16} style={{ display: "flex" }}>
-      <Card className="glass-card" variant="borderless">
-        <Space wrap style={{ display: "flex", justifyContent: "space-between" }}>
-          <Space wrap>
+    <Space orientation="vertical" size={16} style={{ display: "flex" }} className="knowledge-page">
+      <Card className="glass-card knowledge-page__filters-card" variant="borderless">
+        <Space wrap className="knowledge-page__toolbar">
+          <Space wrap className="knowledge-page__toolbar-group knowledge-page__toolbar-group--filters">
             <Input
+              className="knowledge-page__filter-control knowledge-page__filter-control--search"
               placeholder="搜索关键词"
               prefix={<SearchOutlined />}
               allowClear
@@ -225,9 +229,10 @@ export function KnowledgePage() {
                 setPage(1);
                 setFilters((f) => ({ ...f, q: e.target.value || undefined }));
               }}
-              style={{ width: 200 }}
+              style={{ width: isMobile ? "100%" : 200 }}
             />
             <Select
+              className="knowledge-page__filter-control"
               placeholder="分类筛选"
               allowClear
               value={filters.category}
@@ -236,10 +241,10 @@ export function KnowledgePage() {
                 setFilters((f) => ({ ...f, category: v }));
               }}
               options={categoryOptions}
-              style={{ width: 120 }}
+              style={{ width: isMobile ? "100%" : 120 }}
             />
           </Space>
-          <Space>
+          <Space wrap className="knowledge-page__toolbar-group knowledge-page__toolbar-group--actions">
             <Button
               icon={<SearchOutlined />}
               onClick={() => setSearchDrawerOpen(true)}
@@ -253,17 +258,21 @@ export function KnowledgePage() {
         </Space>
       </Card>
 
-      <Card className="glass-card" variant="borderless">
+      <Card className="glass-card knowledge-page__table-card" variant="borderless">
         <Table<KnowledgeEntry>
           rowKey="id"
           columns={columns}
           dataSource={listQuery.data?.items}
           loading={listQuery.isPending}
+          scroll={{ x: 980 }}
+          size={isMobile ? "small" : "middle"}
           pagination={{
             current: page,
             pageSize,
             total: listQuery.data?.total ?? 0,
             showSizeChanger: true,
+            simple: isMobile,
+            size: isMobile ? "small" : undefined,
             showTotal: (t) => `共 ${t} 条`,
             onChange: (p, ps) => {
               setPage(p);

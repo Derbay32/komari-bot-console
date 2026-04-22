@@ -17,7 +17,7 @@ import { usePathname } from "next/navigation";
 import type { Route } from "next";
 import type { ItemType } from "antd/es/menu/interface";
 import { useTheme } from "next-themes";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 
 const { Content, Header, Sider } = Layout;
 
@@ -45,6 +45,8 @@ const CONFIG_ROUTE = "/config" as Route;
 const ANNOUNCE_ROUTE = "/announce" as Route;
 const HELP_ROUTE = "/help" as Route;
 const LOGS_ROUTE = "/llm_logs" as Route;
+
+const emptySubscribe = () => () => undefined;
 
 const menuItems: ItemType[] = [
   {
@@ -87,13 +89,16 @@ const menuItems: ItemType[] = [
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { setTheme, theme } = useTheme();
+  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.lg;
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const selectedKey = routeMap[pathname] ?? "overview";
   const pageTitle = titleMap[pathname] ?? "管理后台";
   const currentTheme =
-    theme === "light" || theme === "dark" || theme === "system" ? theme : "system";
+    mounted && (theme === "light" || theme === "dark" || theme === "system")
+      ? theme
+      : "system";
 
   const navigationContent = (
     <>
