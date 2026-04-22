@@ -18,6 +18,7 @@ const { Content, Header, Sider } = Layout;
 const routeMap: Record<string, string> = {
   "/": "overview",
   "/knowledge": "knowledge",
+  "/help": "help",
   "/memory": "memory",
   "/config": "config",
   "/llm_logs": "logs",
@@ -26,12 +27,14 @@ const routeMap: Record<string, string> = {
 const titleMap: Record<string, string> = {
   "/": "总览",
   "/knowledge": "知识库",
+  "/help": "帮助文档",
   "/memory": "记忆中心",
   "/config": "配置管理",
   "/llm_logs": "回复日志",
 };
 
 const CONFIG_ROUTE = "/config" as Route;
+const HELP_ROUTE = "/help" as Route;
 const LOGS_ROUTE = "/llm_logs" as Route;
 
 const menuItems: ItemType[] = [
@@ -44,6 +47,11 @@ const menuItems: ItemType[] = [
     key: "knowledge",
     icon: <BookOutlined />,
     label: <Link href="/knowledge">知识库</Link>,
+  },
+  {
+    key: "help",
+    icon: <BookOutlined />,
+    label: <Link href={HELP_ROUTE}>帮助文档</Link>,
   },
   {
     key: "memory",

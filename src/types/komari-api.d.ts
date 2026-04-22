@@ -58,6 +58,77 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/komari-help/v1/help": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Help */
+        get: operations["list_help_api_komari_help_v1_help_get"];
+        put?: never;
+        /** Create Help */
+        post: operations["create_help_api_komari_help_v1_help_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/komari-help/v1/help/{hid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Help */
+        get: operations["get_help_api_komari_help_v1_help__hid__get"];
+        put?: never;
+        post?: never;
+        /** Delete Help */
+        delete: operations["delete_help_api_komari_help_v1_help__hid__delete"];
+        options?: never;
+        head?: never;
+        /** Update Help */
+        patch: operations["update_help_api_komari_help_v1_help__hid__patch"];
+        trace?: never;
+    };
+    "/api/komari-help/v1/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Search Help */
+        post: operations["search_help_api_komari_help_v1_search_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/komari-help/v1/scan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Scan Help */
+        post: operations["scan_help_api_komari_help_v1_scan_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/komari-memory/v1/conversations": {
         parameters: {
             query?: never;
@@ -321,10 +392,62 @@ export interface paths {
         patch: operations["update_prompt_field_api_komari_management_prompt_v1_resources__resource_id__fields__field_name__patch"];
         trace?: never;
     };
+    "/api/komari-announce/v1/groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Groups
+         * @description 获取 Bot 已加入的群列表。
+         */
+        get: operations["list_groups_api_komari_announce_v1_groups_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/komari-announce/v1/maintenance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send Maintenance Announce
+         * @description 向指定群发送维护通知。
+         */
+        post: operations["send_maintenance_announce_api_komari_announce_v1_maintenance_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AnnounceResult
+         * @description 单个群发送结果。
+         */
+        AnnounceResult: {
+            /** Group Id */
+            group_id: number;
+            /** Success */
+            success: boolean;
+            /** Error */
+            error?: string | null;
+        };
         /**
          * ConfigFieldUpdateRequest
          * @description 配置字段更新请求。
@@ -349,6 +472,10 @@ export interface components {
             config_file: string;
             /** Fields */
             fields: string[];
+            /** Field Descriptions */
+            field_descriptions: {
+                [key: string]: string;
+            };
             /** Values */
             values: {
                 [key: string]: unknown;
@@ -377,6 +504,10 @@ export interface components {
             config_file: string;
             /** Fields */
             fields: string[];
+            /** Field Descriptions */
+            field_descriptions: {
+                [key: string]: string;
+            };
         };
         /**
          * ConversationCreateRequest
@@ -471,10 +602,175 @@ export interface components {
             /** Last Accessed */
             last_accessed?: string | null;
         };
+        /**
+         * GroupInfo
+         * @description 群信息摘要。
+         */
+        GroupInfo: {
+            /** Group Id */
+            group_id: number;
+            /** Group Name */
+            group_name: string;
+            /** Member Count */
+            member_count: number;
+        };
+        /**
+         * GroupListResponse
+         * @description 群列表响应。
+         */
+        GroupListResponse: {
+            /** Groups */
+            groups: components["schemas"]["GroupInfo"][];
+            /** Total */
+            total: number;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * HelpCreateRequest
+         * @description 新增帮助条目请求。
+         */
+        HelpCreateRequest: {
+            /** Title */
+            title: string;
+            /** Content */
+            content: string;
+            /** Keywords */
+            keywords?: string[];
+            /**
+             * Category
+             * @default other
+             * @enum {string}
+             */
+            category: "command" | "feature" | "faq" | "other";
+            /** Plugin Name */
+            plugin_name?: string | null;
+            /** Notes */
+            notes?: string | null;
+        };
+        /**
+         * HelpEntry
+         * @description 帮助文档单条记录。
+         */
+        HelpEntry: {
+            /** Id */
+            id: number;
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "command" | "feature" | "faq" | "other";
+            /** Plugin Name */
+            plugin_name?: string | null;
+            /** Keywords */
+            keywords?: string[];
+            /** Title */
+            title: string;
+            /** Content */
+            content: string;
+            /** Notes */
+            notes?: string | null;
+            /**
+             * Is Auto Generated
+             * @default false
+             */
+            is_auto_generated: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * HelpListResponse
+         * @description 帮助条目列表响应。
+         */
+        HelpListResponse: {
+            /** Items */
+            items: components["schemas"]["HelpEntry"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /**
+         * HelpScanResponse
+         * @description 扫描结果响应。
+         */
+        HelpScanResponse: {
+            /** Updated Count */
+            updated_count: number;
+        };
+        /**
+         * HelpSearchRequest
+         * @description 帮助检索请求。
+         */
+        HelpSearchRequest: {
+            /** Query */
+            query: string;
+            /**
+             * Limit
+             * @default 5
+             */
+            limit: number;
+        };
+        /**
+         * HelpSearchResult
+         * @description 帮助检索结果。
+         */
+        HelpSearchResult: {
+            /** Id */
+            id: number;
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "command" | "feature" | "faq" | "other";
+            /** Plugin Name */
+            plugin_name?: string | null;
+            /** Title */
+            title: string;
+            /** Content */
+            content: string;
+            /**
+             * Similarity
+             * @default 0
+             */
+            similarity: number;
+            /**
+             * Source
+             * @default keyword
+             * @enum {string}
+             */
+            source: "keyword" | "vector";
+        };
+        /**
+         * HelpUpdateRequest
+         * @description 更新帮助条目请求。
+         */
+        HelpUpdateRequest: {
+            /** Title */
+            title?: string | null;
+            /** Content */
+            content?: string | null;
+            /** Keywords */
+            keywords?: string[] | null;
+            /** Category */
+            category?: ("command" | "feature" | "faq" | "other") | null;
+            /** Plugin Name */
+            plugin_name?: string | null;
+            /** Notes */
+            notes?: string | null;
         };
         /**
          * KnowledgeCreateRequest
@@ -589,6 +885,46 @@ export interface components {
             category?: ("general" | "character" | "setting" | "plot" | "other") | null;
             /** Notes */
             notes?: string | null;
+        };
+        /**
+         * MaintenanceAnnounceRequest
+         * @description 维护通知发送请求。
+         */
+        MaintenanceAnnounceRequest: {
+            /**
+             * Title
+             * @description 维护标题
+             */
+            title: string;
+            /**
+             * Content
+             * @description 维护内容，多行文本，每行一条
+             */
+            content: string;
+            /**
+             * Scheduled Time
+             * @description 预定维护时间
+             */
+            scheduled_time: string;
+            /**
+             * Group Ids
+             * @description 目标群号列表
+             */
+            group_ids: number[];
+        };
+        /**
+         * MaintenanceAnnounceResponse
+         * @description 维护通知发送结果。
+         */
+        MaintenanceAnnounceResponse: {
+            /** Results */
+            results: components["schemas"]["AnnounceResult"][];
+            /** Total */
+            total: number;
+            /** Success Count */
+            success_count: number;
+            /** Failed Count */
+            failed_count: number;
         };
         /**
          * MemoryEntityEntry
@@ -1010,6 +1346,221 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_help_api_komari_help_v1_help_get: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                category?: ("command" | "feature" | "faq" | "other") | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HelpListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_help_api_komari_help_v1_help_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HelpCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HelpEntry"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_help_api_komari_help_v1_help__hid__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hid: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HelpEntry"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_help_api_komari_help_v1_help__hid__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hid: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_help_api_komari_help_v1_help__hid__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hid: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HelpUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HelpEntry"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_help_api_komari_help_v1_search_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HelpSearchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HelpSearchResult"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    scan_help_api_komari_help_v1_scan_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HelpScanResponse"];
                 };
             };
         };
@@ -1750,6 +2301,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PromptResourceDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_groups_api_komari_announce_v1_groups_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupListResponse"];
+                };
+            };
+        };
+    };
+    send_maintenance_announce_api_komari_announce_v1_maintenance_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MaintenanceAnnounceRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MaintenanceAnnounceResponse"];
                 };
             };
             /** @description Validation Error */
