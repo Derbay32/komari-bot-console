@@ -4,18 +4,20 @@ import {
   BookOutlined,
   ClockCircleOutlined,
   DatabaseOutlined,
+  MenuOutlined,
   MoonOutlined,
   NotificationOutlined,
   RobotOutlined,
   SettingOutlined,
   SunOutlined,
 } from "@ant-design/icons";
-import { Layout, Menu, Segmented, Space, Typography } from "antd";
+import { Button, Drawer, Grid, Layout, Menu, Segmented, Space, Typography } from "antd";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Route } from "next";
 import type { ItemType } from "antd/es/menu/interface";
 import { useTheme } from "next-themes";
+import { useState } from "react";
 
 const { Content, Header, Sider } = Layout;
 
@@ -84,72 +86,108 @@ const menuItems: ItemType[] = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { resolvedTheme, setTheme, theme } = useTheme();
+  const { setTheme, theme } = useTheme();
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.lg;
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const selectedKey = routeMap[pathname] ?? "overview";
   const pageTitle = titleMap[pathname] ?? "管理后台";
   const currentTheme =
     theme === "light" || theme === "dark" || theme === "system" ? theme : "system";
 
+  const navigationContent = (
+    <>
+      <div className="console-brand">
+        <Space orientation="vertical" size={12}>
+          <div className="console-logo">
+            <RobotOutlined />
+          </div>
+          <div>
+            <Typography.Title level={4} style={{ margin: 0 }}>
+              Komari Console
+            </Typography.Title>
+            <Typography.Text className="subtle-text">
+              管理知识、记忆与 LLM 行为
+            </Typography.Text>
+          </div>
+        </Space>
+      </div>
+      <Menu
+        className="console-menu"
+        mode="inline"
+        selectedKeys={[selectedKey]}
+        items={menuItems}
+        onClick={() => setMobileNavOpen(false)}
+      />
+    </>
+  );
+
   return (
     <Layout className="console-shell">
-      <Sider breakpoint="lg" collapsedWidth="0" width={252} className="console-sider">
-        <div className="console-brand">
-          <Space orientation="vertical" size={12}>
-            <div className="console-logo">
-              <RobotOutlined />
-            </div>
-            <div>
-              <Typography.Title level={4} style={{ margin: 0 }}>
-                Komari Console
-              </Typography.Title>
-              <Typography.Text className="subtle-text">
-                管理知识、记忆与 LLM 行为
-              </Typography.Text>
-            </div>
-          </Space>
-        </div>
-        <Menu
-          className="console-menu"
-          mode="inline"
-          selectedKeys={[selectedKey]}
-          items={menuItems}
-        />
-      </Sider>
+      {isMobile ? (
+        <Drawer
+          open={mobileNavOpen}
+          onClose={() => setMobileNavOpen(false)}
+          placement="left"
+          size={288}
+          className="console-nav-drawer"
+          rootClassName="console-nav-drawer-root"
+          closable={false}
+        >
+          {navigationContent}
+        </Drawer>
+      ) : (
+        <Sider width={252} className="console-sider">
+          {navigationContent}
+        </Sider>
+      )}
       <Layout className="console-main">
         <Header className="console-header">
-          <Typography.Title level={4} style={{ margin: 0 }}>
-            {pageTitle}
-          </Typography.Title>
+          <div className="console-header__title-group">
+            {isMobile ? (
+              <Button
+                type="text"
+                size="large"
+                icon={<MenuOutlined />}
+                className="console-header__menu-btn"
+                onClick={() => setMobileNavOpen(true)}
+                aria-label="打开导航菜单"
+              />
+            ) : null}
+            <Typography.Title level={4} style={{ margin: 0 }}>
+              {pageTitle}
+            </Typography.Title>
+          </div>
           <div className="console-header__actions">
             <Segmented<"light" | "dark" | "system">
               className="theme-toggle"
+              block={!isMobile}
               value={currentTheme}
               onChange={(value) => setTheme(value)}
               options={[
                 {
                   label: (
-                    <span>
-                      <SunOutlined /> 浅色
+                    <span className="theme-toggle__option">
+                      <SunOutlined />
+                      <span className="theme-toggle__text">浅色</span>
                     </span>
                   ),
                   value: "light",
                 },
                 {
                   label: (
-                    <span>
-                      <MoonOutlined /> 深色
+                    <span className="theme-toggle__option">
+                      <MoonOutlined />
+                      <span className="theme-toggle__text">深色</span>
                     </span>
                   ),
                   value: "dark",
                 },
                 {
                   label: (
-                    <span>
+                    <span className="theme-toggle__option">
                       <RobotOutlined />
-                      {" 跟随系统"}
-                      {resolvedTheme
-                        ? ` · ${resolvedTheme === "dark" ? "当前深色" : "当前浅色"}`
-                        : ""}
+                      <span className="theme-toggle__text">跟随系统</span>
                     </span>
                   ),
                   value: "system",

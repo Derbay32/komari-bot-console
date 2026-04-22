@@ -6,6 +6,7 @@ import {
   Card,
   DatePicker,
   Drawer,
+  Grid,
   Input,
   InputNumber,
   Select,
@@ -67,6 +68,8 @@ function splitXmlOutput(output?: string | null) {
 }
 
 export function LogsPage() {
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [filters, setFilters] = useState<{
@@ -147,10 +150,11 @@ export function LogsPage() {
   ];
 
   return (
-    <Space orientation="vertical" size={16} style={{ display: "flex" }}>
-      <Card className="glass-card" variant="borderless">
-        <Space wrap>
+    <Space orientation="vertical" size={16} style={{ display: "flex" }} className="logs-page">
+      <Card className="glass-card logs-page__filters-card" variant="borderless">
+        <Space wrap size={12} className="logs-page__filters">
           <DatePicker
+            className="logs-page__filter-control logs-page__filter-control--date"
             placeholder="日期筛选"
             onChange={(_, ds) => {
               setPage(1);
@@ -161,6 +165,7 @@ export function LogsPage() {
             }}
           />
           <InputNumber
+            className="logs-page__filter-control"
             placeholder="最近 N 天"
             min={1}
             max={365}
@@ -169,9 +174,10 @@ export function LogsPage() {
               setPage(1);
               setFilters((f) => ({ ...f, days: v ?? undefined }));
             }}
-            style={{ width: 120 }}
+            style={{ width: isMobile ? "100%" : 120 }}
           />
           <Input
+            className="logs-page__filter-control"
             placeholder="Trace ID"
             allowClear
             value={filters.trace_id}
@@ -179,9 +185,10 @@ export function LogsPage() {
               setPage(1);
               setFilters((f) => ({ ...f, trace_id: e.target.value || undefined }));
             }}
-            style={{ width: 180 }}
+            style={{ width: isMobile ? "100%" : 180 }}
           />
           <Input
+            className="logs-page__filter-control"
             placeholder="Model"
             allowClear
             value={filters.model}
@@ -189,9 +196,10 @@ export function LogsPage() {
               setPage(1);
               setFilters((f) => ({ ...f, model: e.target.value || undefined }));
             }}
-            style={{ width: 140 }}
+            style={{ width: isMobile ? "100%" : 140 }}
           />
           <Input
+            className="logs-page__filter-control"
             placeholder="Method"
             allowClear
             value={filters.method}
@@ -199,9 +207,10 @@ export function LogsPage() {
               setPage(1);
               setFilters((f) => ({ ...f, method: e.target.value || undefined }));
             }}
-            style={{ width: 120 }}
+            style={{ width: isMobile ? "100%" : 120 }}
           />
           <Select
+            className="logs-page__filter-control"
             placeholder="状态"
             allowClear
             value={filters.status}
@@ -213,7 +222,7 @@ export function LogsPage() {
               { value: "success", label: "成功" },
               { value: "error", label: "失败" },
             ]}
-            style={{ width: 100 }}
+            style={{ width: isMobile ? "100%" : 100 }}
           />
         </Space>
       </Card>
@@ -231,18 +240,21 @@ export function LogsPage() {
         />
       ) : null}
 
-      <Card className="glass-card" variant="borderless">
+      <Card className="glass-card logs-page__table-card" variant="borderless">
         <Table<ReplyLogListItem>
           rowKey={(r) => `${r.date}-${r.line_number}`}
           columns={columns}
           dataSource={listQuery.data?.items}
           loading={listQuery.isPending}
           scroll={{ x: 1200 }}
+          size={isMobile ? "small" : "middle"}
           pagination={{
             current: page,
             pageSize,
             total: listQuery.data?.total ?? 0,
             showSizeChanger: true,
+            simple: isMobile,
+            size: isMobile ? "small" : undefined,
             showTotal: (t) => `共 ${t} 条`,
             onChange: (p, ps) => {
               setPage(p);
@@ -256,7 +268,8 @@ export function LogsPage() {
         open={detailDrawerOpen}
         title="日志详情"
         onClose={handleCloseDetail}
-        size={720}
+        placement={isMobile ? "bottom" : "right"}
+        size={isMobile ? "78vh" : 720}
       >
         {detailQuery.isPending && <Typography.Text>加载中...</Typography.Text>}
         {detailQuery.isError ? (
