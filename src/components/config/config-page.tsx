@@ -1,6 +1,11 @@
 "use client";
 
-import { EditOutlined, ReloadOutlined } from "@ant-design/icons";
+import {
+  EditOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
+  ReloadOutlined,
+} from "@ant-design/icons";
 import {
   Alert,
   App,
@@ -59,6 +64,7 @@ export function ConfigPage() {
   const resourcesQuery = useConfigResources();
   const resources = resourcesQuery.data?.items ?? EMPTY_RESOURCES;
   const [selectedResourceId, setSelectedResourceId] = useState<string | null>(null);
+  const [isResourceCollapsed, setIsResourceCollapsed] = useState(false);
   const activeResourceId = useMemo(() => {
     if (!resources.length) {
       return null;
@@ -185,6 +191,7 @@ export function ConfigPage() {
         title: "当前值",
         dataIndex: "value",
         key: "value",
+        width: 420,
         render: (value: unknown) => renderConfigValue(value),
       },
       {
@@ -233,16 +240,28 @@ export function ConfigPage() {
         />
       ) : null}
 
-      <div className="config-page__layout">
+      <div
+        className={`config-page__layout${isResourceCollapsed ? " config-page__layout--collapsed" : ""}`}
+      >
         <Card
-          className="glass-card config-page__resource-card"
+          className={`glass-card config-page__resource-card${isResourceCollapsed ? " config-page__resource-card--collapsed" : ""}`}
           variant="borderless"
-          title="配置资源"
-          extra={<Tag color="blue">{resources.length} 项</Tag>}
+          title={isResourceCollapsed ? "资源" : "配置资源"}
+          extra={
+            <Button
+              type="text"
+              size="small"
+              icon={isResourceCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+              onClick={() => setIsResourceCollapsed((value) => !value)}
+              aria-label={isResourceCollapsed ? "展开配置资源栏" : "收起配置资源栏"}
+            >
+              {isResourceCollapsed ? "展开" : "收起"}
+            </Button>
+          }
           loading={resourcesQuery.isPending}
           styles={{ body: { padding: 12 } }}
         >
-          {resources.length ? (
+          {!isResourceCollapsed && resources.length ? (
             <Menu
               mode="inline"
               selectedKeys={activeResourceId ? [activeResourceId] : []}
@@ -278,9 +297,10 @@ export function ConfigPage() {
               }}
               style={{ borderInlineEnd: "none", background: "transparent" }}
             />
-          ) : (
+          ) : null}
+          {!isResourceCollapsed && !resources.length ? (
             <Empty description="暂无配置资源" />
-          )}
+          ) : null}
         </Card>
 
         <Space
@@ -366,7 +386,7 @@ export function ConfigPage() {
                   columns={columns}
                   dataSource={fieldRows}
                   pagination={false}
-                  scroll={{ x: 720 }}
+                  scroll={{ x: 1080 }}
                   locale={{ emptyText: "暂无字段数据" }}
                 />
               </Card>

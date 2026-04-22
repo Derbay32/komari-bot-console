@@ -300,8 +300,16 @@ a {
   align-items: start;
 }
 
+.config-page__layout--collapsed {
+  grid-template-columns: minmax(140px, 160px) minmax(0, 1fr);
+}
+
 .config-page__resource-card {
   min-width: 0;
+}
+
+.config-page__resource-card--collapsed .ant-card-body {
+  display: none;
 }
 
 .config-page__detail {
@@ -341,6 +349,10 @@ a {
   }
 
   .config-page__layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .config-page__layout--collapsed {
     grid-template-columns: minmax(0, 1fr);
   }
 }

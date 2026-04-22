@@ -1,0 +1,88 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e4]:
+    - banner [ref=e5]:
+      - generic:
+        - button "打开导航菜单" [ref=e6] [cursor=pointer]:
+          - img "menu" [ref=e8]:
+            - img [ref=e9]
+        - heading "配置管理" [level=4]
+      - radiogroup "segmented control" [ref=e12]:
+        - generic [ref=e13]:
+          - generic [ref=e15] [cursor=pointer]:
+            - radio "sun" [checked]
+            - img "sun" [ref=e18]:
+              - img [ref=e19]
+          - generic [ref=e21] [cursor=pointer]:
+            - radio "moon"
+            - img "moon" [ref=e24]:
+              - img [ref=e25]
+          - generic [ref=e27] [cursor=pointer]:
+            - radio "robot"
+            - img "robot" [ref=e30]:
+              - img [ref=e31]
+    - main [ref=e33]:
+      - generic [ref=e36]:
+        - generic [ref=e37]:
+          - generic [ref=e39]:
+            - generic [ref=e40]: 配置资源
+            - button "收起配置资源栏" [ref=e42] [cursor=pointer]:
+              - img "menu-fold" [ref=e44]:
+                - img [ref=e45]
+              - generic [ref=e47]: 收起
+          - menu [ref=e49]:
+            - menuitem "Komari Management" [ref=e50] [cursor=pointer]:
+              - strong [ref=e54]: Komari Management
+            - menuitem "Komari Memory" [ref=e55] [cursor=pointer]:
+              - strong [ref=e59]: Komari Memory
+            - menuitem "Komari Knowledge" [ref=e60] [cursor=pointer]:
+              - strong [ref=e64]: Komari Knowledge
+            - menuitem "Komari Help" [ref=e65] [cursor=pointer]:
+              - strong [ref=e69]: Komari Help
+            - menuitem "LLM Provider" [ref=e70] [cursor=pointer]:
+              - strong [ref=e74]: LLM Provider
+            - menuitem "Embedding Provider" [ref=e75] [cursor=pointer]:
+              - strong [ref=e79]: Embedding Provider
+            - menuitem "Group History Summary" [ref=e80] [cursor=pointer]:
+              - strong [ref=e84]: Group History Summary
+            - menuitem "Komari Decision" [ref=e85] [cursor=pointer]:
+              - strong [ref=e89]: Komari Decision
+            - menuitem "Komari Sentry" [ref=e90] [cursor=pointer]:
+              - strong [ref=e94]: Komari Sentry
+            - menuitem "SR" [ref=e95] [cursor=pointer]:
+              - strong [ref=e99]: SR
+            - menuitem "User Data" [ref=e100] [cursor=pointer]:
+              - strong [ref=e104]: User Data
+        - generic [ref=e105]:
+          - generic [ref=e226]:
+            - generic [ref=e228]:
+              - generic [ref=e229]: Komari Management
+              - button "reload 重载配置" [ref=e231] [cursor=pointer]:
+                - img "reload" [ref=e233]
+                - generic [ref=e236]: 重载配置
+            - generic [ref=e238]:
+              - generic [ref=e240]:
+                - strong [ref=e242]: 资源 ID：
+                - code [ref=e244]: komari_management
+              - generic [ref=e246]:
+                - strong [ref=e248]: 配置文件：
+                - text: /Users/derbay32/project/komari-bot/config/config_manager/komari_management_config.json
+              - generic [ref=e252]: 字段数 6
+          - generic [ref=e254]:
+            - generic [ref=e257]: 字段列表 (6)
+            - table [ref=e265]:
+              - rowgroup [ref=e271]:
+                - row "字段名 当前值 说明 操作" [ref=e272]
+              - rowgroup [ref=e277]:
+                - row "announce_status_page_url https://uptime.derbaynas.top:2096/status/komari-bot/ 维护通知中使用的状态页面链接 edit 编辑" [ref=e278]
+                - row "api_allowed_origins [ \"https://console.derbaynas.top:2096\" ] 允许访问管理 API 的前端 Origin 白名单 edit 编辑" [ref=e292]
+                - row "api_token dwFB9tApLgzrH5DVGfwrBTM2WAskeTqh13RFlz03wui 管理 API Bearer Token edit 编辑" [ref=e307]
+                - row "last_updated 2026-04-11T18:30:00+08:00 最后更新时间戳 edit 编辑" [ref=e321]
+                - row "plugin_enable true 是否启用统一管理 API 插件 edit 编辑" [ref=e335]
+                - row "version 1.0 配置架构版本 edit 编辑" [ref=e350]
+  - generic [ref=e116]:
+    - img [ref=e118]
+    - button "Open Tanstack query devtools" [ref=e166] [cursor=pointer]:
+      - img [ref=e167]
+  - button "Open Next.js Dev Tools" [ref=e220] [cursor=pointer]:
+    - img [ref=e221]
+  - alert [ref=e224]
