@@ -173,6 +173,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="console-header__actions">
             <Segmented<"light" | "dark" | "system">
               className="theme-toggle"
+              shape="round"
               block={!isMobile}
               value={currentTheme}
               onChange={(value) => setTheme(value)}

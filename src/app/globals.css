@@ -326,7 +326,6 @@ html.dark .console-menu .ant-menu-item-selected {
 
 .theme-toggle .ant-segmented-item {
   color: var(--text-subtle);
-  border-radius: 999px;
   transition: color 0.2s ease;
 }
 
@@ -337,7 +336,6 @@ html.dark .console-menu .ant-menu-item-selected {
 .theme-toggle .ant-segmented-thumb {
   background: var(--panel-bg-strong);
   border: 1px solid var(--border-soft);
-  border-radius: 999px;
   box-shadow: none;
 }
 
