@@ -129,6 +129,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/komari-memory/v1/conversation-dead-letters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Conversation Dead Letters */
+        get: operations["list_conversation_dead_letters_api_komari_memory_v1_conversation_dead_letters_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/komari-memory/v1/conversation-dead-letters/{group_id}/{snapshot_id}/requeue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Requeue Conversation Dead Letter */
+        post: operations["requeue_conversation_dead_letter_api_komari_memory_v1_conversation_dead_letters__group_id___snapshot_id__requeue_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/komari-memory/v1/conversations": {
         parameters: {
             query?: never;
@@ -209,7 +243,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Interaction Histories */
+        /**
+         * List Interaction Histories
+         * @deprecated
+         */
         get: operations["list_interaction_histories_api_komari_memory_v1_interaction_histories_get"];
         put?: never;
         post?: never;
@@ -219,6 +256,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/komari-memory/v1/interactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Interactions */
+        get: operations["list_interactions_api_komari_memory_v1_interactions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/komari-memory/v1/interactions/{event_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Interaction Event */
+        get: operations["get_interaction_event_api_komari_memory_v1_interactions__event_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Interaction Event */
+        delete: operations["delete_interaction_event_api_komari_memory_v1_interactions__event_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Interaction Event */
+        patch: operations["update_interaction_event_api_komari_memory_v1_interactions__event_id__patch"];
+        trace?: never;
+    };
     "/api/komari-memory/v1/interaction-histories/{group_id}/{user_id}": {
         parameters: {
             query?: never;
@@ -226,12 +299,21 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Interaction History */
+        /**
+         * Get Interaction History
+         * @deprecated
+         */
         get: operations["get_interaction_history_api_komari_memory_v1_interaction_histories__group_id___user_id__get"];
-        /** Put Interaction History */
+        /**
+         * Put Interaction History
+         * @deprecated
+         */
         put: operations["put_interaction_history_api_komari_memory_v1_interaction_histories__group_id___user_id__put"];
         post?: never;
-        /** Delete Interaction History */
+        /**
+         * Delete Interaction History
+         * @deprecated
+         */
         delete: operations["delete_interaction_history_api_komari_memory_v1_interaction_histories__group_id___user_id__delete"];
         options?: never;
         head?: never;
@@ -267,6 +349,70 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/komari-user-bans/v1/bans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Bans
+         * @description 分页查询当前有效的用户封禁。
+         */
+        get: operations["list_bans_api_komari_user_bans_v1_bans_get"];
+        put?: never;
+        /**
+         * Create Or Update Ban
+         * @description 创建或覆盖指定用户封禁。
+         */
+        post: operations["create_or_update_ban_api_komari_user_bans_v1_bans_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/komari-user-bans/v1/bans/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Ban Status
+         * @description 查询指定 QQ 用户的当前封禁。
+         */
+        get: operations["get_ban_status_api_komari_user_bans_v1_bans__user_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/komari-user-bans/v1/bans/{user_id}/{scope}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Ban
+         * @description 手动解除指定用户封禁。
+         */
+        delete: operations["delete_ban_api_komari_user_bans_v1_bans__user_id___scope__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -401,7 +547,7 @@ export interface paths {
         };
         /**
          * List Groups
-         * @description 获取 Bot 已加入的群列表。
+         * @description 获取 Bot 加入的所有群列表。
          */
         get: operations["list_groups_api_komari_announce_v1_groups_get"];
         put?: never;
@@ -432,6 +578,59 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/komari-decision-scenes/v1/scenes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Scenes */
+        get: operations["list_scenes_api_komari_decision_scenes_v1_scenes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/komari-decision-scenes/v1/scenes/{scene_key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Scene */
+        get: operations["get_scene_api_komari_decision_scenes_v1_scenes__scene_key__get"];
+        /** Put Scene */
+        put: operations["put_scene_api_komari_decision_scenes_v1_scenes__scene_key__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch Scene */
+        patch: operations["patch_scene_api_komari_decision_scenes_v1_scenes__scene_key__patch"];
+        trace?: never;
+    };
+    "/api/komari-decision-scenes/v1/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sync Scenes */
+        post: operations["sync_scenes_api_komari_decision_scenes_v1_sync_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -445,8 +644,116 @@ export interface components {
             group_id: number;
             /** Success */
             success: boolean;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "success" | "unreachable" | "failed";
+            /** Bot Id */
+            bot_id?: string | null;
+            /** Error Code */
+            error_code?: string | null;
             /** Error */
             error?: string | null;
+        };
+        /**
+         * BanListResponse
+         * @description 封禁分页列表响应。
+         */
+        BanListResponse: {
+            /** Items */
+            items: components["schemas"]["UserBanStatusResponse"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+        };
+        /**
+         * BanMutationResponse
+         * @description 封禁或解封修改响应。
+         */
+        BanMutationResponse: {
+            /** Changed */
+            changed: boolean;
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "created" | "updated" | "unchanged" | "removed";
+            status: components["schemas"]["UserBanStatusResponse"];
+            notification: components["schemas"]["NotificationResponse"];
+        };
+        /**
+         * BanRecordResponse
+         * @description 单个作用域的封禁记录响应。
+         */
+        BanRecordResponse: {
+            /** User Id */
+            user_id: string;
+            /**
+             * Scope
+             * @enum {string}
+             */
+            scope: "chat" | "command";
+            /** Operator Id */
+            operator_id: string;
+            /** Reason */
+            reason: string | null;
+            /** Expires At */
+            expires_at: string | null;
+            /** Permanent */
+            permanent: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * ConfigFieldMetadata
+         * @description 配置字段的安全与生效方式元数据。
+         */
+        ConfigFieldMetadata: {
+            /** Secret */
+            secret: boolean;
+            /**
+             * Apply Mode
+             * @enum {string}
+             */
+            apply_mode: "immediate" | "rebuild" | "restart";
+        };
+        /**
+         * ConfigFieldState
+         * @description 配置字段的持久化值与当前可确认生效状态。
+         */
+        ConfigFieldState: {
+            /** Secret */
+            secret: boolean;
+            /**
+             * Apply Mode
+             * @enum {string}
+             */
+            apply_mode: "immediate" | "rebuild" | "restart";
+            /** Configured Value */
+            configured_value: unknown;
+            /** Effective Value */
+            effective_value: unknown;
+            /** Source */
+            source: string;
+            /**
+             * Effective Source
+             * @enum {string}
+             */
+            effective_source: "dynamic_config" | "service_snapshot" | "process_startup_snapshot";
+            /** Restart Required */
+            restart_required: boolean;
         };
         /**
          * ConfigFieldUpdateRequest
@@ -468,19 +775,25 @@ export interface components {
             resource_id: string;
             /** Display Name */
             display_name: string;
-            /** Description */
-            description?: string;
-            /** Config File */
-            config_file: string;
+            /** Config Source */
+            config_source: string;
             /** Fields */
             fields: string[];
             /** Field Descriptions */
             field_descriptions: {
                 [key: string]: string;
             };
+            /** Field Metadata */
+            field_metadata: {
+                [key: string]: components["schemas"]["ConfigFieldMetadata"];
+            };
             /** Values */
             values: {
                 [key: string]: unknown;
+            };
+            /** Field States */
+            field_states: {
+                [key: string]: components["schemas"]["ConfigFieldState"];
             };
         };
         /**
@@ -502,15 +815,17 @@ export interface components {
             resource_id: string;
             /** Display Name */
             display_name: string;
-            /** Description */
-            description?: string;
-            /** Config File */
-            config_file: string;
+            /** Config Source */
+            config_source: string;
             /** Fields */
             fields: string[];
             /** Field Descriptions */
             field_descriptions: {
                 [key: string]: string;
+            };
+            /** Field Metadata */
+            field_metadata: {
+                [key: string]: components["schemas"]["ConfigFieldMetadata"];
             };
         };
         /**
@@ -537,6 +852,48 @@ export interface components {
             end_time?: string | null;
             /** Last Accessed */
             last_accessed?: string | null;
+        };
+        /**
+         * ConversationDeadLetterEntry
+         * @description 不含消息正文的对话总结失败快照摘要。
+         */
+        ConversationDeadLetterEntry: {
+            /** Group Id */
+            group_id: string;
+            /** Snapshot Id */
+            snapshot_id: string;
+            /** Failure Code */
+            failure_code: string;
+            /** Attempt Count */
+            attempt_count: number;
+            /** Failed At Ms */
+            failed_at_ms: number;
+            /** Message Count */
+            message_count: number;
+            /** Chunk State Count */
+            chunk_state_count: number;
+        };
+        /**
+         * ConversationDeadLetterListResponse
+         * @description 对话总结失败快照列表响应。
+         */
+        ConversationDeadLetterListResponse: {
+            /** Items */
+            items: components["schemas"]["ConversationDeadLetterEntry"][];
+            /** Limit */
+            limit: number;
+        };
+        /**
+         * ConversationDeadLetterRequeueResponse
+         * @description 失败快照重新入队响应。
+         */
+        ConversationDeadLetterRequeueResponse: {
+            /** Group Id */
+            group_id: string;
+            /** Snapshot Id */
+            snapshot_id: string;
+            /** Restored Message Count */
+            restored_message_count: number;
         };
         /**
          * ConversationEntry
@@ -607,6 +964,33 @@ export interface components {
             last_accessed?: string | null;
         };
         /**
+         * CreateBanRequest
+         * @description 创建或覆盖封禁请求。
+         */
+        CreateBanRequest: {
+            /**
+             * User Id
+             * @description 不带前导零的 QQ 号
+             */
+            user_id: string;
+            /**
+             * Scope
+             * @enum {string}
+             */
+            scope: "chat" | "command" | "all";
+            /**
+             * Duration
+             * @description 封禁时长
+             * @default permanent
+             */
+            duration: string;
+            /**
+             * Reason
+             * @description 封禁理由
+             */
+            reason?: string | null;
+        };
+        /**
          * GroupInfo
          * @description 群信息摘要。
          */
@@ -617,6 +1001,8 @@ export interface components {
             group_name: string;
             /** Member Count */
             member_count: number;
+            /** Bot Ids */
+            bot_ids?: string[];
         };
         /**
          * GroupListResponse
@@ -627,6 +1013,11 @@ export interface components {
             groups: components["schemas"]["GroupInfo"][];
             /** Total */
             total: number;
+            /**
+             * Unavailable Bot Count
+             * @default 0
+             */
+            unavailable_bot_count: number;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -777,6 +1168,73 @@ export interface components {
             notes?: string | null;
         };
         /**
+         * InteractionEventEntry
+         * @description 跨群互动事件记忆条目。
+         */
+        InteractionEventEntry: {
+            /** Id */
+            id: number;
+            /** User Id */
+            user_id: string;
+            /** Display Name */
+            display_name: string;
+            /** Event Summary */
+            event_summary: string;
+            /** Source Message Count */
+            source_message_count: number;
+            /**
+             * First Seen At
+             * Format: date-time
+             */
+            first_seen_at: string;
+            /**
+             * Last Seen At
+             * Format: date-time
+             */
+            last_seen_at: string;
+            /** Importance */
+            importance: number;
+            /** Importance Initial */
+            importance_initial: number;
+            /** Importance Current */
+            importance_current: number;
+            /** Last Accessed */
+            last_accessed?: string | null;
+            /**
+             * Is Fuzzy
+             * @default false
+             */
+            is_fuzzy: boolean;
+            /** Created At */
+            created_at?: string | null;
+        };
+        /**
+         * InteractionEventListResponse
+         * @description 跨群互动事件记忆列表响应。
+         */
+        InteractionEventListResponse: {
+            /** Items */
+            items: components["schemas"]["InteractionEventEntry"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /**
+         * InteractionEventUpdateRequest
+         * @description 更新跨群互动事件请求。
+         */
+        InteractionEventUpdateRequest: {
+            /** Event Summary */
+            event_summary?: string | null;
+            /** Importance Initial */
+            importance_initial?: number | null;
+            /** Importance Current */
+            importance_current?: number | null;
+        };
+        /**
          * KnowledgeCreateRequest
          * @description 新增知识请求。
          */
@@ -790,7 +1248,7 @@ export interface components {
              * @default general
              * @enum {string}
              */
-            category: "general" | "character" | "setting" | "plot" | "other";
+            category: "general" | "character" | "setting" | "plot" | "other" | "custom";
             /** Notes */
             notes?: string | null;
         };
@@ -805,7 +1263,7 @@ export interface components {
              * Category
              * @enum {string}
              */
-            category: "general" | "character" | "setting" | "plot" | "other";
+            category: "general" | "character" | "setting" | "plot" | "other" | "custom";
             /** Keywords */
             keywords?: string[];
             /** Content */
@@ -848,7 +1306,7 @@ export interface components {
              * Category
              * @enum {string}
              */
-            category: "general" | "character" | "setting" | "plot" | "other";
+            category: "general" | "character" | "setting" | "plot" | "other" | "custom";
             /** Content */
             content: string;
             /**
@@ -886,7 +1344,7 @@ export interface components {
             /** Keywords */
             keywords?: string[] | null;
             /** Category */
-            category?: ("general" | "character" | "setting" | "plot" | "other") | null;
+            category?: ("general" | "character" | "setting" | "plot" | "other" | "custom") | null;
             /** Notes */
             notes?: string | null;
         };
@@ -929,6 +1387,10 @@ export interface components {
             success_count: number;
             /** Failed Count */
             failed_count: number;
+            /** Unreachable Count */
+            unreachable_count: number;
+            /** Unavailable Bot Count */
+            unavailable_bot_count: number;
         };
         /**
          * MemoryEntityEntry
@@ -969,6 +1431,18 @@ export interface components {
             offset: number;
         };
         /**
+         * NotificationResponse
+         * @description 私信通知尝试结果响应。
+         */
+        NotificationResponse: {
+            /** Attempted */
+            attempted: boolean;
+            /** Sent */
+            sent: boolean;
+            /** Error */
+            error: string | null;
+        };
+        /**
          * PromptFieldUpdateRequest
          * @description 提示词字段更新请求。
          */
@@ -988,14 +1462,20 @@ export interface components {
             resource_id: string;
             /** Display Name */
             display_name: string;
+            /** Config Source */
+            config_source: string;
+            /** Storage Key */
+            storage_key: string;
             /** File Path */
-            file_path: string;
+            file_path?: string | null;
             /** Fields */
             fields: string[];
             /** Values */
             values: {
                 [key: string]: string;
             };
+            /** Revision */
+            revision: number;
         };
         /**
          * PromptResourceListResponse
@@ -1016,20 +1496,29 @@ export interface components {
             resource_id: string;
             /** Display Name */
             display_name: string;
+            /** Config Source */
+            config_source: string;
+            /** Storage Key */
+            storage_key: string;
             /** File Path */
-            file_path: string;
+            file_path?: string | null;
             /** Fields */
             fields: string[];
         };
         /**
          * ReplyLogDetail
-         * @description reply 日志详情。
+         * @description reply 日志详情，仅包含脱敏元数据。
          */
         ReplyLogDetail: {
             /** Date */
             date: string;
             /** Line Number */
             line_number: number;
+            /**
+             * Schema Version
+             * @default 2
+             */
+            schema_version: number;
             /** Timestamp */
             timestamp: string;
             /** Method */
@@ -1053,27 +1542,31 @@ export interface components {
              * @enum {string}
              */
             status: "success" | "error";
+            /** Finish Reason */
+            finish_reason?: string | null;
+            /** Tool Calls Count */
+            tool_calls_count?: number | null;
             /**
-             * Input Preview
-             * @default
+             * Reasoning Chars
+             * @default 0
              */
-            input_preview: string;
-            /**
-             * Output Preview
-             * @default
-             */
-            output_preview: string;
-            /**
-             * Error Preview
-             * @default
-             */
-            error_preview: string;
-            /** Input */
-            input?: unknown;
-            /** Output */
-            output?: string | null;
-            /** Error */
-            error?: string | null;
+            reasoning_chars: number;
+            /** Input Summary */
+            input_summary?: {
+                [key: string]: unknown;
+            };
+            /** Output Summary */
+            output_summary?: {
+                [key: string]: unknown;
+            } | null;
+            /** Error Summary */
+            error_summary?: {
+                [key: string]: unknown;
+            } | null;
+            /** Usage */
+            usage?: {
+                [key: string]: number;
+            } | null;
         };
         /**
          * ReplyLogListItem
@@ -1084,6 +1577,11 @@ export interface components {
             date: string;
             /** Line Number */
             line_number: number;
+            /**
+             * Schema Version
+             * @default 2
+             */
+            schema_version: number;
             /** Timestamp */
             timestamp: string;
             /** Method */
@@ -1107,21 +1605,31 @@ export interface components {
              * @enum {string}
              */
             status: "success" | "error";
+            /** Finish Reason */
+            finish_reason?: string | null;
+            /** Tool Calls Count */
+            tool_calls_count?: number | null;
             /**
-             * Input Preview
-             * @default
+             * Reasoning Chars
+             * @default 0
              */
-            input_preview: string;
-            /**
-             * Output Preview
-             * @default
-             */
-            output_preview: string;
-            /**
-             * Error Preview
-             * @default
-             */
-            error_preview: string;
+            reasoning_chars: number;
+            /** Input Summary */
+            input_summary?: {
+                [key: string]: unknown;
+            };
+            /** Output Summary */
+            output_summary?: {
+                [key: string]: unknown;
+            } | null;
+            /** Error Summary */
+            error_summary?: {
+                [key: string]: unknown;
+            } | null;
+            /** Usage */
+            usage?: {
+                [key: string]: number;
+            } | null;
         };
         /**
          * ReplyLogListResponse
@@ -1136,6 +1644,138 @@ export interface components {
             limit: number;
             /** Offset */
             offset: number;
+        };
+        /**
+         * SceneDetail
+         * @description Scene 详情。
+         */
+        SceneDetail: {
+            /** Scene Key */
+            scene_key: string;
+            /**
+             * Scene Type
+             * @enum {string}
+             */
+            scene_type: "fixed" | "general";
+            /** Enabled */
+            enabled: boolean;
+            /** Order Index */
+            order_index: number;
+            /** Content Hash */
+            content_hash: string;
+            /** Updated At */
+            updated_at: string;
+            /** Content Text */
+            content_text: string;
+        };
+        /**
+         * SceneListResponse
+         * @description Scene 列表响应。
+         */
+        SceneListResponse: {
+            /** Items */
+            items: components["schemas"]["SceneSummary"][];
+            /** Total */
+            total: number;
+        };
+        /**
+         * ScenePatchRequest
+         * @description Scene 局部更新请求。
+         */
+        ScenePatchRequest: {
+            /** Content Text */
+            content_text?: string | null;
+            /** Enabled */
+            enabled?: boolean | null;
+            /** Order Index */
+            order_index?: number | null;
+        };
+        /**
+         * ScenePutRequest
+         * @description Scene 全量更新请求。
+         */
+        ScenePutRequest: {
+            /**
+             * Scene Type
+             * @enum {string}
+             */
+            scene_type: "fixed" | "general";
+            /** Content Text */
+            content_text: string;
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /**
+             * Order Index
+             * @default 0
+             */
+            order_index: number;
+        };
+        /**
+         * SceneSummary
+         * @description Scene 摘要。
+         */
+        SceneSummary: {
+            /** Scene Key */
+            scene_key: string;
+            /**
+             * Scene Type
+             * @enum {string}
+             */
+            scene_type: "fixed" | "general";
+            /** Enabled */
+            enabled: boolean;
+            /** Order Index */
+            order_index: number;
+            /** Content Hash */
+            content_hash: string;
+            /** Updated At */
+            updated_at: string;
+        };
+        /**
+         * SceneSyncResponse
+         * @description Scene 同步触发响应。
+         */
+        SceneSyncResponse: {
+            /** Triggered */
+            triggered: boolean;
+            /** Set Id */
+            set_id?: number | null;
+            /** Created */
+            created?: boolean | null;
+            /** Reused Existing Set */
+            reused_existing_set?: boolean | null;
+            /** Inserted Count */
+            inserted_count?: number | null;
+            /** Ready Count */
+            ready_count?: number | null;
+            /** Pending Count */
+            pending_count?: number | null;
+            /** Detail */
+            detail: string;
+        };
+        /**
+         * UserBanStatusResponse
+         * @description 用户当前封禁状态响应。
+         */
+        UserBanStatusResponse: {
+            /** User Id */
+            user_id: string;
+            /** Active Scopes */
+            active_scopes: ("chat" | "command")[];
+            /** Records */
+            records: components["schemas"]["BanRecordResponse"][];
+            /** Superuser Bypass */
+            superuser_bypass: boolean;
+        };
+        /**
+         * UserProfileUpsertRequest
+         * @description 有结构与内容预算的用户画像写入载荷。
+         */
+        UserProfileUpsertRequest: {
+            [key: string]: unknown;
         };
         /** ValidationError */
         ValidationError: {
@@ -1163,7 +1803,7 @@ export interface operations {
         parameters: {
             query?: {
                 q?: string | null;
-                category?: ("general" | "character" | "setting" | "plot" | "other") | null;
+                category?: ("general" | "character" | "setting" | "plot" | "other" | "custom") | null;
                 limit?: number;
                 offset?: number;
             };
@@ -1569,6 +2209,69 @@ export interface operations {
             };
         };
     };
+    list_conversation_dead_letters_api_komari_memory_v1_conversation_dead_letters_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationDeadLetterListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    requeue_conversation_dead_letter_api_komari_memory_v1_conversation_dead_letters__group_id___snapshot_id__requeue_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: string;
+                snapshot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationDeadLetterRequeueResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_conversations_api_komari_memory_v1_conversations_get: {
         parameters: {
             query?: {
@@ -1813,9 +2516,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
+                "application/json": components["schemas"]["UserProfileUpsertRequest"];
             };
         };
         responses: {
@@ -1871,8 +2572,27 @@ export interface operations {
     };
     list_interaction_histories_api_komari_memory_v1_interaction_histories_get: {
         parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    list_interactions_api_komari_memory_v1_interactions_get: {
+        parameters: {
             query?: {
-                group_id?: string | null;
                 user_id?: string | null;
                 q?: string | null;
                 limit?: number;
@@ -1890,7 +2610,102 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MemoryEntityListResponse"];
+                    "application/json": components["schemas"]["InteractionEventListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_interaction_event_api_komari_memory_v1_interactions__event_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InteractionEventEntry"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_interaction_event_api_komari_memory_v1_interactions__event_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_interaction_event_api_komari_memory_v1_interactions__event_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InteractionEventUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InteractionEventEntry"];
                 };
             };
             /** @description Validation Error */
@@ -1922,7 +2737,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MemoryEntityEntry"];
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
@@ -1938,9 +2753,7 @@ export interface operations {
     };
     put_interaction_history_api_komari_memory_v1_interaction_histories__group_id___user_id__put: {
         parameters: {
-            query?: {
-                importance?: number;
-            };
+            query?: never;
             header?: never;
             path: {
                 group_id: string;
@@ -1948,13 +2761,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -1962,7 +2769,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MemoryEntityEntry"];
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
@@ -1989,11 +2796,13 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Successful Response */
-            204: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": unknown;
+                };
             };
             /** @description Validation Error */
             422: {
@@ -2076,6 +2885,141 @@ export interface operations {
             };
         };
     };
+    list_bans_api_komari_user_bans_v1_bans_get: {
+        parameters: {
+            query?: {
+                scope?: "chat" | "command" | "all";
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BanListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_or_update_ban_api_komari_user_bans_v1_bans_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Komari-Change-Reason"?: string | null;
+                "X-Request-ID"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateBanRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BanMutationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_ban_status_api_komari_user_bans_v1_bans__user_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserBanStatusResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_ban_api_komari_user_bans_v1_bans__user_id___scope__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Komari-Change-Reason"?: string | null;
+                "X-Request-ID"?: string | null;
+            };
+            path: {
+                user_id: string;
+                scope: "chat" | "command" | "all";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BanMutationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_config_resources_api_komari_management_config_v1_resources_get: {
         parameters: {
             query?: never;
@@ -2130,7 +3074,10 @@ export interface operations {
     reload_config_resource_api_komari_management_config_v1_resources__resource_id__reload_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "X-Komari-Change-Reason"?: string | null;
+                "X-Request-ID"?: string | null;
+            };
             path: {
                 resource_id: string;
             };
@@ -2161,7 +3108,10 @@ export interface operations {
     update_config_field_api_komari_management_config_v1_resources__resource_id__fields__field_name__patch: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "X-Komari-Change-Reason"?: string | null;
+                "X-Request-ID"?: string | null;
+            };
             path: {
                 resource_id: string;
                 field_name: string;
@@ -2248,7 +3198,11 @@ export interface operations {
     replace_prompt_resource_api_komari_management_prompt_v1_resources__resource_id__put: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                "If-Match": string;
+                "X-Komari-Change-Reason"?: string | null;
+                "X-Request-ID"?: string | null;
+            };
             path: {
                 resource_id: string;
             };
@@ -2257,7 +3211,7 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    [key: string]: string;
+                    [key: string]: unknown;
                 };
             };
         };
@@ -2285,7 +3239,11 @@ export interface operations {
     update_prompt_field_api_komari_management_prompt_v1_resources__resource_id__fields__field_name__patch: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                "If-Match": string;
+                "X-Komari-Change-Reason"?: string | null;
+                "X-Request-ID"?: string | null;
+            };
             path: {
                 resource_id: string;
                 field_name: string;
@@ -2341,7 +3299,10 @@ export interface operations {
     send_maintenance_announce_api_komari_announce_v1_maintenance_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "X-Komari-Change-Reason"?: string | null;
+                "X-Request-ID"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -2358,6 +3319,165 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MaintenanceAnnounceResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_scenes_api_komari_decision_scenes_v1_scenes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SceneListResponse"];
+                };
+            };
+        };
+    };
+    get_scene_api_komari_decision_scenes_v1_scenes__scene_key__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scene_key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SceneDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_scene_api_komari_decision_scenes_v1_scenes__scene_key__put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Komari-Change-Reason"?: string | null;
+                "X-Request-ID"?: string | null;
+            };
+            path: {
+                scene_key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScenePutRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SceneDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_scene_api_komari_decision_scenes_v1_scenes__scene_key__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Komari-Change-Reason"?: string | null;
+                "X-Request-ID"?: string | null;
+            };
+            path: {
+                scene_key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScenePatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SceneDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sync_scenes_api_komari_decision_scenes_v1_sync_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Komari-Change-Reason"?: string | null;
+                "X-Request-ID"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SceneSyncResponse"];
                 };
             };
             /** @description Validation Error */
