@@ -84,7 +84,7 @@ export function JsonEditorModal({
       <div
         style={{
           border: "1px solid var(--code-border)",
-          borderRadius: 8,
+          borderRadius: 12,
           overflow: "hidden",
         }}
       >

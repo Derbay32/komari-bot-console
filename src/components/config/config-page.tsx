@@ -222,12 +222,23 @@ export function ConfigPage() {
   );
 
   return (
-    <Space orientation="vertical" size={16} style={{ display: "flex" }}>
+    <Space orientation="vertical" size={16} style={{ display: "flex" }} className="config-page">
+      <div className="page-header">
+        <div className="page-header__main">
+          <Typography.Title level={2} className="page-title">
+            配置管理
+          </Typography.Title>
+          <p className="page-description">
+            查看并调整小鞠的运行配置，修改后记得重载生效
+          </p>
+        </div>
+      </div>
+
       {resourcesQuery.isError ? (
         <Alert
           showIcon
           type="warning"
-          message="配置资源加载失败"
+          title="配置资源加载失败"
           description={
             resourcesQuery.error instanceof Error
               ? resourcesQuery.error.message
@@ -315,7 +326,7 @@ export function ConfigPage() {
             <Alert
               showIcon
               type="error"
-              message="配置详情加载失败"
+              title="配置详情加载失败"
               description={
                 detailQuery.error instanceof Error ? detailQuery.error.message : "请稍后重试。"
               }
@@ -367,7 +378,7 @@ export function ConfigPage() {
                     </div>
                   ) : null}
                   <Space wrap size={[8, 8]}>
-                    <Tag color="geekblue">字段数 {selectedResource.fields.length}</Tag>
+                    <Tag color="gold">字段数 {selectedResource.fields.length}</Tag>
                   </Space>
                 </Space>
               </Card>
@@ -585,7 +596,7 @@ function PrimitiveFieldModal({
           <Alert
             type="info"
             showIcon
-            message="当前字段值为 null"
+            title="当前字段值为 null"
             description="这里按字符串方式编辑，保存后将以文本形式写入配置。"
           />
         ) : null}
