@@ -3,12 +3,14 @@
 import {
   BellOutlined,
   BookOutlined,
+  DeploymentUnitOutlined,
   FileTextOutlined,
   HighlightOutlined,
   MenuOutlined,
   MoonOutlined,
   RobotOutlined,
   SettingOutlined,
+  StopOutlined,
   SunOutlined,
   TagOutlined,
 } from "@ant-design/icons";
@@ -30,6 +32,8 @@ const routeMap: Record<string, string> = {
   "/help": "help",
   "/memory": "memory",
   "/announce": "announce",
+  "/bans": "bans",
+  "/scenes": "scenes",
   "/config": "config",
   "/llm_logs": "logs",
 };
@@ -40,12 +44,16 @@ const titleMap: Record<string, string> = {
   "/help": "帮助文档",
   "/memory": "记忆中心",
   "/announce": "公告通知",
+  "/bans": "用户封禁",
+  "/scenes": "决策场景",
   "/config": "配置管理",
   "/llm_logs": "回复日志",
 };
 
 const CONFIG_ROUTE = "/config" as Route;
 const ANNOUNCE_ROUTE = "/announce" as Route;
+const BANS_ROUTE = "/bans" as Route;
+const SCENES_ROUTE = "/scenes" as Route;
 const HELP_ROUTE = "/help" as Route;
 const LOGS_ROUTE = "/llm_logs" as Route;
 
@@ -76,6 +84,16 @@ const menuItems: ItemType[] = [
     key: "announce",
     icon: <BellOutlined />,
     label: <Link href={ANNOUNCE_ROUTE}>公告通知</Link>,
+  },
+  {
+    key: "bans",
+    icon: <StopOutlined />,
+    label: <Link href={BANS_ROUTE}>用户封禁</Link>,
+  },
+  {
+    key: "scenes",
+    icon: <DeploymentUnitOutlined />,
+    label: <Link href={SCENES_ROUTE}>决策场景</Link>,
   },
   {
     key: "config",
