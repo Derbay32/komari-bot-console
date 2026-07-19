@@ -530,6 +530,7 @@ html.dark .stat-card__icon--green {
 
 .page-header__main {
   min-width: 0;
+  margin-left: 10px;
 }
 
 .page-title.ant-typography {
