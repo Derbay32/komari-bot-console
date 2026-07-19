@@ -101,7 +101,7 @@ const menuItems: ItemType[] = [
     label: <Link href={CONFIG_ROUTE}>配置管理</Link>,
   },
   {
-    key: "llm_logs",
+    key: "logs",
     icon: <FileTextOutlined />,
     label: <Link href={LOGS_ROUTE}>回复日志</Link>,
   },
