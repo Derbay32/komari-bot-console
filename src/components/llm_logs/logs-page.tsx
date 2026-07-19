@@ -23,48 +23,18 @@ import { useReplyLog, useReplyLogList } from "@/lib/hooks/use-reply-logs";
 type ReplyLogListItem = components["schemas"]["ReplyLogListItem"];
 type ReplyLogDetail = components["schemas"]["ReplyLogDetail"];
 
-function extractAssistantOutput(output?: string | null) {
-  if (!output) {
+function summarizeOutput(summary?: Record<string, unknown> | null): string {
+  if (!summary) {
     return "-";
   }
 
-  const thinkEndIndex = output.search(/<\/think>/i);
-  if (thinkEndIndex !== -1) {
-    const afterThink = output.slice(thinkEndIndex + "</think>".length).trim();
-    if (afterThink) {
-      return afterThink.replace(/^<content>/i, "").replace(/<\/content>$/i, "").trim() || "-";
-    }
+  const text = summary.preview ?? summary.text ?? summary.content;
+  if (typeof text === "string" && text.trim()) {
+    return text.trim();
   }
 
-  const contentMatch = output.match(/<content>([\s\S]*?)(?:<\/content>|$)/i);
-  if (contentMatch?.[1]?.trim()) {
-    return contentMatch[1].trim();
-  }
-
-  return output.trim() || "-";
-}
-
-function splitXmlOutput(output?: string | null) {
-  if (!output) {
-    return { thinking: null, response: null, raw: null };
-  }
-
-  const contentMatch = output.match(/<content>([\s\S]*?)(?:<\/content>|$)/i);
-  const thinkEndIndex = output.search(/<\/think>/i);
-
-  const thinking =
-    thinkEndIndex !== -1 ? output.slice(0, thinkEndIndex).trim() || null : null;
-  const response =
-    thinkEndIndex !== -1
-      ? output
-          .slice(thinkEndIndex + "</think>".length)
-          .replace(/^\s*<content>/i, "")
-          .replace(/<\/content>\s*$/i, "")
-          .trim() || null
-      : contentMatch?.[1]?.trim() || null;
-  const raw = thinking || response ? null : output.trim();
-
-  return { thinking, response, raw };
+  const json = JSON.stringify(summary);
+  return json === "{}" ? "-" : json;
 }
 
 export function LogsPage() {
@@ -131,12 +101,10 @@ export function LogsPage() {
     },
     {
       title: "输出",
-      dataIndex: "output_preview",
+      dataIndex: "output_summary",
       ellipsis: true,
-      render: (_: string, record: ReplyLogListItem) =>
-        extractAssistantOutput(detailQuery.data?.date === record.date && detailQuery.data?.line_number === record.line_number
-          ? detailQuery.data.output
-          : record.output_preview),
+      render: (v: Record<string, unknown> | null | undefined) =>
+        summarizeOutput(v),
     },
     {
       title: "操作",
@@ -302,8 +270,6 @@ export function LogsPage() {
 }
 
 function LogDetailContent({ detail }: { detail: ReplyLogDetail }) {
-  const parsedOutput = splitXmlOutput(detail.output);
-
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {[
@@ -311,10 +277,17 @@ function LogDetailContent({ detail }: { detail: ReplyLogDetail }) {
         { label: "时间", value: new Date(detail.timestamp).toLocaleString("zh-CN") },
         { label: "方法", value: detail.method },
         { label: "模型", value: detail.model },
+        { label: "Trace ID", value: detail.trace_id },
+        { label: "阶段", value: detail.phase },
         {
           label: "耗时",
           value: typeof detail.duration_ms === "number" ? `${Math.round(detail.duration_ms)}ms` : "-",
         },
+        {
+          label: "工具调用数",
+          value: typeof detail.tool_calls_count === "number" ? String(detail.tool_calls_count) : "-",
+        },
+        { label: "推理字符数", value: String(detail.reasoning_chars) },
       ].map((item) => (
         <div key={item.label}>
           <Typography.Text strong>{item.label}: </Typography.Text>
@@ -329,48 +302,41 @@ function LogDetailContent({ detail }: { detail: ReplyLogDetail }) {
         </Tag>
       </div>
 
-      {detail.input !== undefined && (
+      {detail.input_summary ? (
         <div>
-          <div className="detail-section-title">输入</div>
+          <div className="detail-section-title">输入摘要</div>
           <pre style={codeBlockStyle}>
-            {typeof detail.input === "string"
-              ? detail.input
-              : JSON.stringify(detail.input, null, 2)}
+            {JSON.stringify(detail.input_summary, null, 2)}
           </pre>
         </div>
-      )}
+      ) : null}
 
-      {detail.output !== undefined && detail.output !== null && (
+      {detail.output_summary ? (
         <div>
-          {parsedOutput.thinking ? (
-            <>
-              <div className="detail-section-title">思考</div>
-              <pre style={codeBlockStyle}>{parsedOutput.thinking}</pre>
-            </>
-          ) : null}
-
-          {parsedOutput.response ? (
-            <>
-              <div className="detail-section-title">输出</div>
-              <pre style={codeBlockStyle}>{parsedOutput.response}</pre>
-            </>
-          ) : null}
-
-          {parsedOutput.raw ? (
-            <>
-              <div className="detail-section-title">原始输出</div>
-              <pre style={codeBlockStyle}>{parsedOutput.raw}</pre>
-            </>
-          ) : null}
+          <div className="detail-section-title">输出摘要</div>
+          <pre style={codeBlockStyle}>
+            {JSON.stringify(detail.output_summary, null, 2)}
+          </pre>
         </div>
-      )}
+      ) : null}
 
-      {detail.error !== undefined && detail.error !== null && (
+      {detail.error_summary ? (
         <div>
-          <div className="detail-section-title">错误</div>
-          <pre style={{ ...codeBlockStyle, color: "var(--error-text)" }}>{detail.error}</pre>
+          <div className="detail-section-title">错误摘要</div>
+          <pre style={{ ...codeBlockStyle, color: "var(--error-text)" }}>
+            {JSON.stringify(detail.error_summary, null, 2)}
+          </pre>
         </div>
-      )}
+      ) : null}
+
+      {detail.usage ? (
+        <div>
+          <div className="detail-section-title">用量</div>
+          <pre style={codeBlockStyle}>
+            {JSON.stringify(detail.usage, null, 2)}
+          </pre>
+        </div>
+      ) : null}
     </div>
   );
 }

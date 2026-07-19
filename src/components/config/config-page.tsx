@@ -285,15 +285,13 @@ export function ConfigPage() {
                     }}
                   >
                     <Typography.Text strong>{resource.display_name}</Typography.Text>
-                    {resource.description ? (
-                      <Typography.Text
-                        type="secondary"
-                        style={{ fontSize: 12 }}
-                        ellipsis={{ tooltip: resource.description }}
-                      >
-                        {resource.description}
-                      </Typography.Text>
-                    ) : null}
+                    <Typography.Text
+                      type="secondary"
+                      style={{ fontSize: 12 }}
+                      ellipsis={{ tooltip: resource.config_source }}
+                    >
+                      {resource.config_source}
+                    </Typography.Text>
                   </div>
                 ),
               }))}
@@ -366,17 +364,9 @@ export function ConfigPage() {
                     <Typography.Text code>{selectedResource.resource_id}</Typography.Text>
                   </div>
                   <div>
-                    <Typography.Text strong>配置文件：</Typography.Text>
-                    <Typography.Text>{selectedResource.config_file}</Typography.Text>
+                    <Typography.Text strong>配置来源：</Typography.Text>
+                    <Typography.Text>{selectedResource.config_source}</Typography.Text>
                   </div>
-                  {selectedResource.description ? (
-                    <div>
-                      <Typography.Text strong>配置说明：</Typography.Text>
-                      <Typography.Paragraph style={{ marginTop: 4, marginBottom: 0 }}>
-                        {selectedResource.description}
-                      </Typography.Paragraph>
-                    </div>
-                  ) : null}
                   <Space wrap size={[8, 8]}>
                     <Tag color="gold">字段数 {selectedResource.fields.length}</Tag>
                   </Space>
