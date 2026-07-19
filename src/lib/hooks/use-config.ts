@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { buildAuditHeaders, createRequestId } from "@/lib/http/audit";
 import { apiFetch } from "@/lib/http/client";
 import type { components } from "@/types/komari-api";
 
@@ -44,6 +45,10 @@ export function useUpdateConfigField() {
         {
           method: "PATCH",
           body: data,
+          headers: buildAuditHeaders(
+            `update-config-field:${resourceId}:${fieldName}`,
+            createRequestId("web-config"),
+          ),
         },
       ),
     onSuccess: (_, variables) => {
@@ -62,6 +67,10 @@ export function useReloadConfig() {
         `/api/komari-management-config/v1/resources/${resourceId}/reload`,
         {
           method: "POST",
+          headers: buildAuditHeaders(
+            `reload-config:${resourceId}`,
+            createRequestId("web-config"),
+          ),
         },
       ),
     onSuccess: (_, resourceId) => {
