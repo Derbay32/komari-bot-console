@@ -1,23 +1,26 @@
 "use client";
 
 import {
+  BellOutlined,
   BookOutlined,
-  ClockCircleOutlined,
-  DatabaseOutlined,
+  FileTextOutlined,
+  HighlightOutlined,
   MenuOutlined,
   MoonOutlined,
-  NotificationOutlined,
   RobotOutlined,
   SettingOutlined,
   SunOutlined,
+  TagOutlined,
 } from "@ant-design/icons";
-import { Button, Drawer, Grid, Layout, Menu, Segmented, Space, Typography } from "antd";
+import { Button, Drawer, Grid, Layout, Menu, Segmented, Typography } from "antd";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Route } from "next";
 import type { ItemType } from "antd/es/menu/interface";
 import { useTheme } from "next-themes";
 import { useState, useSyncExternalStore } from "react";
+
+import { BrandLogo, D20Icon, DaisyIcon } from "@/components/brand-logo";
 
 const { Content, Header, Sider } = Layout;
 
@@ -51,7 +54,7 @@ const emptySubscribe = () => () => undefined;
 const menuItems: ItemType[] = [
   {
     key: "overview",
-    icon: <RobotOutlined />,
+    icon: <D20Icon size={15} />,
     label: <Link href="/">总览</Link>,
   },
   {
@@ -61,17 +64,17 @@ const menuItems: ItemType[] = [
   },
   {
     key: "help",
-    icon: <BookOutlined />,
+    icon: <HighlightOutlined />,
     label: <Link href={HELP_ROUTE}>帮助文档</Link>,
   },
   {
     key: "memory",
-    icon: <DatabaseOutlined />,
+    icon: <TagOutlined />,
     label: <Link href="/memory">记忆中心</Link>,
   },
   {
     key: "announce",
-    icon: <NotificationOutlined />,
+    icon: <BellOutlined />,
     label: <Link href={ANNOUNCE_ROUTE}>公告通知</Link>,
   },
   {
@@ -81,7 +84,7 @@ const menuItems: ItemType[] = [
   },
   {
     key: "llm_logs",
-    icon: <ClockCircleOutlined />,
+    icon: <FileTextOutlined />,
     label: <Link href={LOGS_ROUTE}>回复日志</Link>,
   },
 ];
@@ -103,19 +106,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const navigationContent = (
     <>
       <div className="console-brand">
-        <Space orientation="vertical" size={12}>
+        <DaisyIcon size={26} className="console-brand__daisy" />
+        <div className="console-brand__row">
           <div className="console-logo">
-            <RobotOutlined />
+            <BrandLogo size={44} />
           </div>
-          <div>
-            <Typography.Title level={4} style={{ margin: 0 }}>
-              Komari Console
+          <div className="console-brand__text">
+            <Typography.Title level={4} className="console-brand__title">
+              Komari Bot Console
             </Typography.Title>
-            <Typography.Text className="subtle-text">
-              管理知识、记忆与 LLM 行为
+            <Typography.Text className="console-brand__subtitle">
+              負けヒロインが多すぎる！
             </Typography.Text>
           </div>
-        </Space>
+        </div>
       </div>
       <Menu
         className="console-menu"
@@ -124,6 +128,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         items={menuItems}
         onClick={() => setMobileNavOpen(false)}
       />
+      <div className="console-sider-deco" aria-hidden="true">
+        <D20Icon size={120} className="console-sider-deco__dice" />
+      </div>
     </>
   );
 
@@ -159,7 +166,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 aria-label="打开导航菜单"
               />
             ) : null}
-            <Typography.Title level={4} style={{ margin: 0 }}>
+            <Typography.Title level={4} className="console-header__title">
               {pageTitle}
             </Typography.Title>
           </div>
