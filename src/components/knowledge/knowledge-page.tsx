@@ -49,10 +49,10 @@ const categoryOptions: { value: KnowledgeCategory; label: string }[] = [
 ];
 
 const categoryColorMap: Record<KnowledgeCategory, string> = {
-  general: "blue",
-  character: "purple",
+  general: "volcano",
+  character: "magenta",
   setting: "green",
-  plot: "orange",
+  plot: "gold",
   other: "default",
 };
 
@@ -216,6 +216,25 @@ export function KnowledgePage() {
 
   return (
     <Space orientation="vertical" size={16} style={{ display: "flex" }} className="knowledge-page">
+      <div className="page-header">
+        <div className="page-header__main">
+          <Typography.Title level={2} className="page-title">
+            知识库
+          </Typography.Title>
+          <p className="page-description">
+            维护小鞠的设定、角色与剧情知识，供检索增强回复使用
+          </p>
+        </div>
+        <div className="page-header__actions">
+          <Button icon={<SearchOutlined />} onClick={() => setSearchDrawerOpen(true)}>
+            搜索测试
+          </Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
+            新增知识
+          </Button>
+        </div>
+      </div>
+
       <Card className="glass-card knowledge-page__filters-card" variant="borderless">
         <Space wrap className="knowledge-page__toolbar">
           <Space wrap className="knowledge-page__toolbar-group knowledge-page__toolbar-group--filters">
@@ -243,17 +262,6 @@ export function KnowledgePage() {
               options={categoryOptions}
               style={{ width: isMobile ? "100%" : 120 }}
             />
-          </Space>
-          <Space wrap className="knowledge-page__toolbar-group knowledge-page__toolbar-group--actions">
-            <Button
-              icon={<SearchOutlined />}
-              onClick={() => setSearchDrawerOpen(true)}
-            >
-              搜索测试
-            </Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-              新增知识
-            </Button>
           </Space>
         </Space>
       </Card>
@@ -331,11 +339,7 @@ export function KnowledgePage() {
                 {searchMutation.data.map((item) => (
                   <div
                     key={`${item.id}-${item.source}`}
-                    style={{
-                      width: "100%",
-                      paddingBottom: 12,
-                      borderBottom: "1px solid #f0f0f0",
-                    }}
+                    className="search-result-item"
                   >
                     <Space
                       orientation="vertical"
@@ -347,7 +351,7 @@ export function KnowledgePage() {
                           {item.category}
                         </Tag>
                         <Tag>相似度 {item.similarity.toFixed(4)}</Tag>
-                        <Tag color={item.source === "vector" ? "green" : "blue"}>
+                        <Tag color={item.source === "vector" ? "green" : "volcano"}>
                           {item.source}
                         </Tag>
                       </Space>

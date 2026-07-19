@@ -51,9 +51,9 @@ const categoryOptions: { value: HelpCategory; label: string }[] = [
 ];
 
 const categoryColorMap: Record<HelpCategory, string> = {
-  command: "blue",
+  command: "volcano",
   feature: "green",
-  faq: "purple",
+  faq: "magenta",
   other: "default",
 };
 
@@ -236,47 +236,57 @@ export function HelpPage() {
 
   return (
     <Space orientation="vertical" size={16} style={{ display: "flex" }}>
+      <div className="page-header">
+        <div className="page-header__main">
+          <Typography.Title level={2} className="page-title">
+            帮助文档
+          </Typography.Title>
+          <p className="page-description">
+            管理命令与功能说明文档，扫描插件目录可自动重新生成
+          </p>
+        </div>
+        <div className="page-header__actions">
+          <Button
+            type="primary"
+            icon={<ReloadOutlined />}
+            loading={scanMutation.isPending}
+            onClick={handleScan}
+          >
+            扫描生成
+          </Button>
+          <Button icon={<SearchOutlined />} onClick={() => setSearchDrawerOpen(true)}>
+            搜索测试
+          </Button>
+          <Button icon={<PlusOutlined />} onClick={handleCreate}>
+            新增帮助
+          </Button>
+        </div>
+      </div>
+
       <Card className="glass-card" variant="borderless">
-        <Space wrap style={{ display: "flex", justifyContent: "space-between" }}>
-          <Space wrap>
-            <Input
-              placeholder="搜索关键词"
-              prefix={<SearchOutlined />}
-              allowClear
-              value={filters.q}
-              onChange={(e) => {
-                setPage(1);
-                setFilters((current) => ({ ...current, q: e.target.value || undefined }));
-              }}
-              style={{ width: 220 }}
-            />
-            <Select
-              placeholder="分类筛选"
-              allowClear
-              value={filters.category}
-              onChange={(value) => {
-                setPage(1);
-                setFilters((current) => ({ ...current, category: value }));
-              }}
-              options={categoryOptions}
-              style={{ width: 140 }}
-            />
-          </Space>
-          <Space wrap>
-            <Button
-              icon={<ReloadOutlined />}
-              loading={scanMutation.isPending}
-              onClick={handleScan}
-            >
-              扫描生成
-            </Button>
-            <Button icon={<SearchOutlined />} onClick={() => setSearchDrawerOpen(true)}>
-              搜索测试
-            </Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-              新增帮助
-            </Button>
-          </Space>
+        <Space wrap>
+          <Input
+            placeholder="搜索关键词"
+            prefix={<SearchOutlined />}
+            allowClear
+            value={filters.q}
+            onChange={(e) => {
+              setPage(1);
+              setFilters((current) => ({ ...current, q: e.target.value || undefined }));
+            }}
+            style={{ width: 220 }}
+          />
+          <Select
+            placeholder="分类筛选"
+            allowClear
+            value={filters.category}
+            onChange={(value) => {
+              setPage(1);
+              setFilters((current) => ({ ...current, category: value }));
+            }}
+            options={categoryOptions}
+            style={{ width: 140 }}
+          />
         </Space>
       </Card>
 
@@ -454,21 +464,14 @@ function HelpSearchResultList({ items }: { items: HelpSearchResult[] }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       {items.map((item) => (
-        <div
-          key={`${item.id}-${item.source}`}
-          style={{
-            width: "100%",
-            paddingBottom: 12,
-            borderBottom: "1px solid #f0f0f0",
-          }}
-        >
+        <div key={`${item.id}-${item.source}`} className="search-result-item">
           <Space orientation="vertical" size={4} style={{ display: "flex" }}>
             <Space wrap>
               <Tag color={categoryColorMap[item.category]}>
                 {categoryOptions.find((option) => option.value === item.category)?.label ?? item.category}
               </Tag>
               <Tag>{item.title}</Tag>
-              <Tag color={item.source === "vector" ? "green" : "blue"}>{item.source}</Tag>
+              <Tag color={item.source === "vector" ? "green" : "volcano"}>{item.source}</Tag>
               <Tag>相似度 {item.similarity.toFixed(4)}</Tag>
               {item.plugin_name ? <Tag>{item.plugin_name}</Tag> : null}
             </Space>
