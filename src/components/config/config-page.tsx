@@ -26,7 +26,7 @@ import {
   Typography,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { JsonEditorModal } from "@/components/json-editor-modal";
 import { getRequestErrorMessage } from "@/lib/http/error";
@@ -60,7 +60,6 @@ const EMPTY_RESOURCES: ConfigResourceSummary[] = [];
 
 export function ConfigPage() {
   const { message } = App.useApp();
-  const [form] = Form.useForm();
   const resourcesQuery = useConfigResources();
   const resources = resourcesQuery.data?.items ?? EMPTY_RESOURCES;
   const [selectedResourceId, setSelectedResourceId] = useState<string | null>(null);
@@ -114,30 +113,28 @@ export function ConfigPage() {
     });
   }, []);
 
-  const handleSubmitPrimitive = useCallback(async () => {
-    if (!primitiveField || !activeResourceId) {
-      return;
-    }
-
-    try {
-      const values = await form.validateFields();
-      await updateFieldMutation.mutateAsync({
-        resourceId: activeResourceId,
-        fieldName: primitiveField.fieldName,
-        data: {
-          value: normalizePrimitiveValue(primitiveField.mode, values.value),
-        },
-      });
-      message.success(`字段 ${primitiveField.fieldName} 更新成功`);
-      setPrimitiveField(null);
-    } catch (error) {
-      if (isValidationError(error)) {
+  const handleSubmitPrimitive = useCallback(
+    async (value: unknown) => {
+      if (!primitiveField || !activeResourceId) {
         return;
       }
 
-      message.error(getRequestErrorMessage(error, `字段 ${primitiveField.fieldName} 更新失败`));
-    }
-  }, [activeResourceId, form, message, primitiveField, updateFieldMutation]);
+      try {
+        await updateFieldMutation.mutateAsync({
+          resourceId: activeResourceId,
+          fieldName: primitiveField.fieldName,
+          data: {
+            value: normalizePrimitiveValue(primitiveField.mode, value),
+          },
+        });
+        message.success(`字段 ${primitiveField.fieldName} 更新成功`);
+        setPrimitiveField(null);
+      } catch (error) {
+        message.error(getRequestErrorMessage(error, `字段 ${primitiveField.fieldName} 更新失败`));
+      }
+    },
+    [activeResourceId, message, primitiveField, updateFieldMutation],
+  );
 
   const handleSubmitJson = useCallback(
     async (value: Record<string, unknown>) => {
@@ -394,64 +391,15 @@ export function ConfigPage() {
         </Space>
       </div>
 
-      <Modal
-        open={!!primitiveField}
-        title={primitiveField ? `编辑字段 - ${primitiveField.fieldName}` : "编辑字段"}
-        onCancel={() => setPrimitiveField(null)}
-        onOk={handleSubmitPrimitive}
-        confirmLoading={updateFieldMutation.isPending}
-        destroyOnHidden
-      >
-        {primitiveField ? (
-          <Form
-            key={`${primitiveField.fieldName}-${primitiveField.mode}-${String(primitiveField.value)}`}
-            form={form}
-            layout="vertical"
-            initialValues={{ value: getPrimitiveFormValue(primitiveField) }}
-          >
-            <Form.Item label="字段名">
-              <Input value={primitiveField.fieldName} disabled />
-            </Form.Item>
-            <Form.Item label="字段说明">
-              <Input
-                value={selectedResource?.field_descriptions?.[primitiveField.fieldName] ?? "暂无说明"}
-                disabled
-              />
-            </Form.Item>
-            {primitiveField.mode === "string" ? (
-              <Form.Item
-                name="value"
-                label="字段值"
-                rules={[{ required: true, message: "请输入字段值" }]}
-              >
-                <Input.TextArea rows={4} placeholder="请输入字符串值" />
-              </Form.Item>
-            ) : null}
-            {primitiveField.mode === "number" ? (
-              <Form.Item
-                name="value"
-                label="字段值"
-                rules={[{ required: true, message: "请输入字段值" }]}
-              >
-                <InputNumber style={{ width: "100%" }} placeholder="请输入数字值" />
-              </Form.Item>
-            ) : null}
-            {primitiveField.mode === "boolean" ? (
-              <Form.Item name="value" label="字段值" valuePropName="checked">
-                <Switch checkedChildren="启用" unCheckedChildren="关闭" />
-              </Form.Item>
-            ) : null}
-            {primitiveField.mode === "null" ? (
-              <Alert
-                type="info"
-                showIcon
-                message="当前字段值为 null"
-                description="这里按字符串方式编辑，保存后将以文本形式写入配置。"
-              />
-            ) : null}
-          </Form>
-        ) : null}
-      </Modal>
+      {primitiveField ? (
+        <PrimitiveFieldModal
+          field={primitiveField}
+          description={selectedResource?.field_descriptions?.[primitiveField.fieldName]}
+          confirmLoading={updateFieldMutation.isPending}
+          onCancel={() => setPrimitiveField(null)}
+          onSubmit={handleSubmitPrimitive}
+        />
+      ) : null}
 
       {jsonField ? (
         <JsonEditorModal
@@ -560,6 +508,88 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function isValidationError(error: unknown) {
-  return !!error && typeof error === "object" && "errorFields" in error;
+type PrimitiveFieldModalProps = {
+  field: PrimitiveFieldState;
+  description?: string;
+  confirmLoading: boolean;
+  onCancel: () => void;
+  onSubmit: (value: unknown) => Promise<void>;
+};
+
+function PrimitiveFieldModal({
+  field,
+  description,
+  confirmLoading,
+  onCancel,
+  onSubmit,
+}: PrimitiveFieldModalProps) {
+  const [form] = Form.useForm<{ value: unknown }>();
+
+  useEffect(() => {
+    form.setFieldsValue({ value: getPrimitiveFormValue(field) });
+  }, [field, form]);
+
+  const handleOk = useCallback(async () => {
+    let values: { value: unknown };
+
+    try {
+      values = await form.validateFields();
+    } catch {
+      // 校验失败时 antd 已展示错误信息，直接中断提交
+      return;
+    }
+
+    await onSubmit(values.value);
+  }, [form, onSubmit]);
+
+  return (
+    <Modal
+      open
+      title={`编辑字段 - ${field.fieldName}`}
+      onCancel={onCancel}
+      onOk={handleOk}
+      confirmLoading={confirmLoading}
+      destroyOnHidden
+    >
+      <Form form={form} layout="vertical" initialValues={{ value: getPrimitiveFormValue(field) }}>
+        <Form.Item label="字段名">
+          <Input value={field.fieldName} disabled />
+        </Form.Item>
+        <Form.Item label="字段说明">
+          <Input value={description ?? "暂无说明"} disabled />
+        </Form.Item>
+        {field.mode === "string" ? (
+          <Form.Item
+            name="value"
+            label="字段值"
+            rules={[{ required: true, message: "请输入字段值" }]}
+          >
+            <Input.TextArea rows={4} placeholder="请输入字符串值" />
+          </Form.Item>
+        ) : null}
+        {field.mode === "number" ? (
+          <Form.Item
+            name="value"
+            label="字段值"
+            rules={[{ required: true, message: "请输入字段值" }]}
+          >
+            <InputNumber style={{ width: "100%" }} placeholder="请输入数字值" />
+          </Form.Item>
+        ) : null}
+        {field.mode === "boolean" ? (
+          <Form.Item name="value" label="字段值" valuePropName="checked">
+            <Switch checkedChildren="启用" unCheckedChildren="关闭" />
+          </Form.Item>
+        ) : null}
+        {field.mode === "null" ? (
+          <Alert
+            type="info"
+            showIcon
+            message="当前字段值为 null"
+            description="这里按字符串方式编辑，保存后将以文本形式写入配置。"
+          />
+        ) : null}
+      </Form>
+    </Modal>
+  );
 }
