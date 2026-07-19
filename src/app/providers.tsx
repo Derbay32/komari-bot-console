@@ -17,11 +17,21 @@ function ThemedAntdProvider({ children }: { children: React.ReactNode }) {
     () => ({
       algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
       token: {
-        colorPrimary: "#1668dc",
-        borderRadius: 14,
-        colorBgLayout: isDark ? "#111827" : "#eef3fb",
+        colorPrimary: isDark ? "#C76B7D" : "#943A4D",
+        colorLink: isDark ? "#C76B7D" : "#943A4D",
+        colorSuccess: isDark ? "#7FBE7E" : "#5B9E5A",
+        colorWarning: isDark ? "#E8B450" : "#E3A93C",
+        colorError: isDark ? "#E26875" : "#C93B4A",
+        colorInfo: isDark ? "#C98A97" : "#B06B7A",
+        borderRadius: 12,
+        colorBgLayout: isDark ? "#1A1315" : "#F8ECEA",
         fontFamily:
           '"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif',
+      },
+      components: {
+        Table: {
+          headerBg: isDark ? "#2C2024" : "#F9EFEA",
+        },
       },
     }),
     [isDark],
