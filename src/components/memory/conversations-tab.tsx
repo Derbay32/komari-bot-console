@@ -30,6 +30,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import type { components } from "@/types/komari-api";
 import { getRequestErrorMessage } from "@/lib/http/error";
+import { formatDateTime } from "@/lib/format";
 import {
   useConversationList,
   useConversationGroupSummaryList,
@@ -654,15 +655,6 @@ function getImportanceColor(value: number) {
   }
 
   return "default";
-}
-
-function formatDateTime(value: string | null | undefined) {
-  if (!value) {
-    return "暂无";
-  }
-
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString("zh-CN");
 }
 
 function getOptionalString(value: unknown) {
