@@ -19,8 +19,9 @@ import {
 } from "antd";
 import type { TableColumnsType } from "antd";
 import type { Dayjs } from "dayjs";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
+import { createRequestId } from "@/lib/http/audit";
 import { getRequestErrorMessage } from "@/lib/http/error";
 import { useGroupList, useSendMaintenanceAnnounce } from "@/lib/hooks/use-announce";
 import type { components } from "@/types/komari-api";
@@ -39,6 +40,7 @@ export function AnnouncePage() {
   const [form] = Form.useForm<AnnounceFormValues>();
   const [groupKeyword, setGroupKeyword] = useState("");
   const [lastResult, setLastResult] = useState<MaintenanceAnnounceResponse | null>(null);
+  const requestIdRef = useRef<string | null>(null);
 
   const groupsQuery = useGroupList();
   const sendMutation = useSendMaintenanceAnnounce();
@@ -138,8 +140,13 @@ export function AnnouncePage() {
       cancelText: "取消",
       okButtonProps: { danger: true },
       onOk: async () => {
+        const requestId = requestIdRef.current ?? createRequestId("web-announce");
+        requestIdRef.current = requestId;
+
         try {
-          const result = await sendMutation.mutateAsync(payload);
+          const result = await sendMutation.mutateAsync({ data: payload, requestId });
+          requestIdRef.current = null;
+          form.resetFields();
           setLastResult(result);
           message.success(`通知发送完成：成功 ${result.success_count} 个，失败 ${result.failed_count} 个`);
         } catch (error) {
@@ -173,7 +180,14 @@ export function AnnouncePage() {
       </Card>
 
       <Card className="glass-card" variant="borderless" title="维护通知">
-        <Form form={form} layout="vertical" initialValues={{ group_ids: [] }}>
+        <Form
+          form={form}
+          layout="vertical"
+          initialValues={{ group_ids: [] }}
+          onValuesChange={() => {
+            requestIdRef.current = null;
+          }}
+        >
           <Form.Item
             name="title"
             label="标题"

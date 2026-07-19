@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 
+import { buildAuditHeaders } from "@/lib/http/audit";
 import { apiFetch } from "@/lib/http/client";
 import type { components } from "@/types/komari-api";
 
@@ -16,10 +17,17 @@ export function useGroupList() {
 
 export function useSendMaintenanceAnnounce() {
   return useMutation({
-    mutationFn: (data: MaintenanceAnnounceRequest) =>
+    mutationFn: ({
+      data,
+      requestId,
+    }: {
+      data: MaintenanceAnnounceRequest;
+      requestId: string;
+    }) =>
       apiFetch<MaintenanceAnnounceResponse>("/api/komari-announce/v1/maintenance", {
         method: "POST",
         body: data,
+        headers: buildAuditHeaders("send-maintenance-announce", requestId),
       }),
   });
 }
