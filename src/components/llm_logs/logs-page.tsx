@@ -151,6 +151,17 @@ export function LogsPage() {
 
   return (
     <Space orientation="vertical" size={16} style={{ display: "flex" }} className="logs-page">
+      <div className="page-header">
+        <div className="page-header__main">
+          <Typography.Title level={2} className="page-title">
+            回复日志
+          </Typography.Title>
+          <p className="page-description">
+            追踪每一次 LLM 调用的输入输出，排查小鞠的回复质量
+          </p>
+        </div>
+      </div>
+
       <Card className="glass-card logs-page__filters-card" variant="borderless">
         <Space wrap size={12} className="logs-page__filters">
           <DatePicker
@@ -231,7 +242,7 @@ export function LogsPage() {
         <Alert
           showIcon
           type="warning"
-          message="回复日志加载失败"
+          title="回复日志加载失败"
           description={
             listQuery.error instanceof Error
               ? listQuery.error.message
@@ -276,7 +287,7 @@ export function LogsPage() {
           <Alert
             showIcon
             type="error"
-            message="日志详情加载失败"
+            title="日志详情加载失败"
             description={
               detailQuery.error instanceof Error
                 ? detailQuery.error.message
@@ -320,7 +331,7 @@ function LogDetailContent({ detail }: { detail: ReplyLogDetail }) {
 
       {detail.input !== undefined && (
         <div>
-          <Typography.Text strong>输入:</Typography.Text>
+          <div className="detail-section-title">输入</div>
           <pre style={codeBlockStyle}>
             {typeof detail.input === "string"
               ? detail.input
@@ -333,21 +344,21 @@ function LogDetailContent({ detail }: { detail: ReplyLogDetail }) {
         <div>
           {parsedOutput.thinking ? (
             <>
-              <Typography.Text strong>思考:</Typography.Text>
+              <div className="detail-section-title">思考</div>
               <pre style={codeBlockStyle}>{parsedOutput.thinking}</pre>
             </>
           ) : null}
 
           {parsedOutput.response ? (
             <>
-              <Typography.Text strong>输出:</Typography.Text>
+              <div className="detail-section-title">输出</div>
               <pre style={codeBlockStyle}>{parsedOutput.response}</pre>
             </>
           ) : null}
 
           {parsedOutput.raw ? (
             <>
-              <Typography.Text strong>原始输出:</Typography.Text>
+              <div className="detail-section-title">原始输出</div>
               <pre style={codeBlockStyle}>{parsedOutput.raw}</pre>
             </>
           ) : null}
@@ -356,7 +367,7 @@ function LogDetailContent({ detail }: { detail: ReplyLogDetail }) {
 
       {detail.error !== undefined && detail.error !== null && (
         <div>
-          <Typography.Text strong>错误:</Typography.Text>
+          <div className="detail-section-title">错误</div>
           <pre style={{ ...codeBlockStyle, color: "var(--error-text)" }}>{detail.error}</pre>
         </div>
       )}

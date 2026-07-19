@@ -158,6 +158,17 @@ export function AnnouncePage() {
 
   return (
     <Space orientation="vertical" size={16} style={{ display: "flex" }}>
+      <div className="page-header">
+        <div className="page-header__main">
+          <Typography.Title level={2} className="page-title">
+            公告通知
+          </Typography.Title>
+          <p className="page-description">
+            向小鞠所在的群聊广播维护通知，发送后不可撤回
+          </p>
+        </div>
+      </div>
+
       <Card className="glass-card" variant="borderless" title="群列表">
         <Space orientation="vertical" size={12} style={{ display: "flex" }}>
           <Typography.Text className="subtle-text">
@@ -263,8 +274,9 @@ export function AnnouncePage() {
                       maxHeight: 240,
                       overflowY: "auto",
                       padding: 12,
-                      border: "1px solid rgba(5, 5, 5, 0.06)",
-                      borderRadius: 8,
+                      border: "1px solid var(--border-soft)",
+                      borderRadius: 12,
+                      background: "var(--module-card-bg)",
                     }}
                   >
                     <Space orientation="vertical" size={8} style={{ display: "flex" }}>
@@ -316,12 +328,12 @@ export function AnnouncePage() {
               <Statistic
                 title="成功"
                 value={lastResult.success_count}
-                styles={{ content: { color: "#3f8600" } }}
+                styles={{ content: { color: "#5B9E5A" } }}
               />
               <Statistic
                 title="失败"
                 value={lastResult.failed_count}
-                styles={{ content: { color: "#cf1322" } }}
+                styles={{ content: { color: "var(--error-text)" } }}
               />
             </Space>
             <Table<AnnounceResult>
