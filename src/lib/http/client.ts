@@ -90,7 +90,23 @@ async function parseResponseBody(response: Response) {
 }
 
 function resolveErrorMessage(payload: unknown, status: number) {
-  if (payload && typeof payload === "object" && "message" in payload) {
+  if (payload && typeof payload === "object") {
+    const detail = Reflect.get(payload, "detail");
+
+    if (typeof detail === "string" && detail.trim()) {
+      return detail;
+    }
+
+    if (Array.isArray(detail)) {
+      const itemMessage = getObjectMessage(detail[0], "msg");
+      return itemMessage ?? JSON.stringify(detail);
+    }
+
+    if (detail && typeof detail === "object") {
+      const detailMessage = getObjectMessage(detail, "message");
+      return detailMessage ?? JSON.stringify(detail);
+    }
+
     const message = Reflect.get(payload, "message");
     if (typeof message === "string" && message.trim()) {
       return message;
@@ -98,4 +114,23 @@ function resolveErrorMessage(payload: unknown, status: number) {
   }
 
   return `请求失败，状态码 ${status}`;
+}
+
+function getObjectMessage(
+  value: unknown,
+  preferredKey: "message" | "msg",
+): string | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const fallbackKey = preferredKey === "message" ? "msg" : "message";
+  for (const key of [preferredKey, fallbackKey]) {
+    const message = Reflect.get(value, key);
+    if (typeof message === "string" && message.trim()) {
+      return message;
+    }
+  }
+
+  return null;
 }
