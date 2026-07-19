@@ -181,7 +181,7 @@ export function ConversationsTab() {
         <Alert
           showIcon
           type="warning"
-          message="群组菜单加载失败"
+          title="群组菜单加载失败"
           description={
             groupSummaryQuery.error instanceof Error
               ? groupSummaryQuery.error.message
