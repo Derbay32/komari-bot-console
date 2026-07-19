@@ -115,7 +115,7 @@ export function DeadLettersTab() {
       <Alert
         type="info"
         showIcon
-        message="对话死信为对话落库失败的快照，重新入队后由后端重放落库流程。"
+        title="对话死信为对话落库失败的快照，重新入队后由后端重放落库流程。"
       />
       <Card className="glass-card" variant="borderless">
         <Space wrap>
