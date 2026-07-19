@@ -196,7 +196,7 @@ export function ConversationsTab() {
             className="glass-card"
             variant="borderless"
             title="群组菜单"
-            extra={<Tag color="blue">{groupSummaries.length} 个群组</Tag>}
+            extra={<Tag color="volcano">{groupSummaries.length} 个群组</Tag>}
             loading={groupSummaryQuery.isPending}
           >
             <Space orientation="vertical" size={12} style={{ display: "flex" }}>
@@ -235,7 +235,7 @@ export function ConversationsTab() {
                         >
                           {summary.groupId}
                         </span>
-                        <Tag color="blue" style={{ marginInlineEnd: 0 }}>
+                        <Tag color="volcano" style={{ marginInlineEnd: 0 }}>
                           {summary.conversationCount}
                         </Tag>
                       </div>
@@ -300,9 +300,9 @@ export function ConversationsTab() {
                 </Space>
 
                 <Space wrap size={[8, 8]}>
-                  {activeGroupId ? <Tag color="geekblue">Group ID · {activeGroupId}</Tag> : null}
+                  {activeGroupId ? <Tag color="gold">Group ID · {activeGroupId}</Tag> : null}
                   {activeGroupSummary ? (
-                    <Tag color="blue">{activeGroupSummary.conversationCount} 条对话</Tag>
+                    <Tag color="volcano">{activeGroupSummary.conversationCount} 条对话</Tag>
                   ) : null}
                   <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
                     新增对话
@@ -315,7 +315,7 @@ export function ConversationsTab() {
               <Alert
                 showIcon
                 type="warning"
-                message="对话记忆加载失败"
+                title="对话记忆加载失败"
                 description={
                   listQuery.error instanceof Error ? listQuery.error.message : "请稍后重试。"
                 }
@@ -342,7 +342,7 @@ export function ConversationsTab() {
                   title={`Group ID · ${activeGroupId}`}
                   extra={
                     activeGroupSummary ? (
-                      <Tag color="blue">{activeGroupSummary.conversationCount} 条对话</Tag>
+                      <Tag color="volcano">{activeGroupSummary.conversationCount} 条对话</Tag>
                     ) : null
                   }
                 >
@@ -413,7 +413,7 @@ export function ConversationsTab() {
                             </div>
 
                             <Space wrap size={[8, 8]}>
-                              <Tag color="geekblue">{conversation.participantCount} 位参与者</Tag>
+                              <Tag color="gold">{conversation.participantCount} 位参与者</Tag>
                               <Tag color={getImportanceColor(conversation.importanceCurrent)}>
                                 当前重要性 {conversation.importanceCurrent}
                               </Tag>
@@ -432,7 +432,7 @@ export function ConversationsTab() {
                   title={`Group ID · ${activeGroupId}`}
                   extra={
                     activeGroupSummary ? (
-                      <Tag color="blue">{activeGroupSummary.conversationCount} 条对话</Tag>
+                      <Tag color="volcano">{activeGroupSummary.conversationCount} 条对话</Tag>
                     ) : null
                   }
                 >
@@ -650,7 +650,7 @@ function getImportanceColor(value: number) {
   }
 
   if (value >= 2) {
-    return "blue";
+    return "volcano";
   }
 
   return "default";

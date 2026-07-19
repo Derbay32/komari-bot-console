@@ -195,7 +195,7 @@ export function InteractionHistoriesTab() {
         <Alert
           showIcon
           type="warning"
-          message="群组菜单加载失败"
+          title="群组菜单加载失败"
           description={
             groupSummaryQuery.error instanceof Error
               ? groupSummaryQuery.error.message
@@ -210,7 +210,7 @@ export function InteractionHistoriesTab() {
             className="glass-card"
             variant="borderless"
             title="群组菜单"
-            extra={<Tag color="blue">{groupSummaries.length} 个群组</Tag>}
+            extra={<Tag color="volcano">{groupSummaries.length} 个群组</Tag>}
             loading={groupSummaryQuery.isPending}
           >
             <Space orientation="vertical" size={12} style={{ display: "flex" }}>
@@ -249,7 +249,7 @@ export function InteractionHistoriesTab() {
                         >
                           {summary.groupId}
                         </span>
-                        <Tag color="blue" style={{ marginInlineEnd: 0 }}>
+                        <Tag color="volcano" style={{ marginInlineEnd: 0 }}>
                           {summary.userCount}
                         </Tag>
                       </div>
@@ -313,9 +313,9 @@ export function InteractionHistoriesTab() {
                 </Space>
 
                 <Space wrap size={[8, 8]}>
-                  {activeGroupId ? <Tag color="geekblue">Group ID · {activeGroupId}</Tag> : null}
+                  {activeGroupId ? <Tag color="gold">Group ID · {activeGroupId}</Tag> : null}
                   {activeGroupSummary ? (
-                    <Tag color="blue">{activeGroupSummary.userCount} 位用户</Tag>
+                    <Tag color="volcano">{activeGroupSummary.userCount} 位用户</Tag>
                   ) : null}
                 </Space>
               </Space>
@@ -325,7 +325,7 @@ export function InteractionHistoriesTab() {
               <Alert
                 showIcon
                 type="warning"
-                message="互动历史加载失败"
+                title="互动历史加载失败"
                 description={
                   listQuery.error instanceof Error
                     ? listQuery.error.message
@@ -354,7 +354,7 @@ export function InteractionHistoriesTab() {
                   title={`Group ID · ${activeGroupId}`}
                   extra={
                     activeGroupSummary ? (
-                      <Tag color="blue">{activeGroupSummary.userCount} 位用户</Tag>
+                      <Tag color="volcano">{activeGroupSummary.userCount} 位用户</Tag>
                     ) : null
                   }
                 >
@@ -402,7 +402,7 @@ export function InteractionHistoriesTab() {
                             </div>
 
                             <Space wrap size={[8, 8]}>
-                              <Tag color="geekblue">{profile.recordItems.length} 条记录</Tag>
+                              <Tag color="gold">{profile.recordItems.length} 条记录</Tag>
                               <Tag color={getImportanceColor(profile.importance)}>
                                 重要性 {profile.importance}
                               </Tag>
@@ -421,7 +421,7 @@ export function InteractionHistoriesTab() {
                   title={`Group ID · ${activeGroupId}`}
                   extra={
                     activeGroupSummary ? (
-                      <Tag color="blue">{activeGroupSummary.userCount} 位用户</Tag>
+                      <Tag color="volcano">{activeGroupSummary.userCount} 位用户</Tag>
                     ) : null
                   }
                 >
@@ -500,7 +500,7 @@ export function InteractionHistoriesTab() {
           <Alert
             showIcon
             type="error"
-            message="互动历史详情加载失败"
+            title="互动历史详情加载失败"
             description={
               detailQuery.error instanceof Error
                 ? detailQuery.error.message
@@ -555,7 +555,7 @@ export function InteractionHistoriesTab() {
                         borderBottom:
                           index === activeProfile.recordItems.length - 1
                             ? "none"
-                            : "1px solid #f0f0f0",
+                            : "1px solid var(--border-soft)",
                       }}
                     >
                       <Space wrap size={[8, 8]}>
@@ -748,7 +748,7 @@ function getImportanceColor(value: number) {
   }
 
   if (value >= 2) {
-    return "blue";
+    return "volcano";
   }
 
   return "default";
