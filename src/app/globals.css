@@ -120,6 +120,10 @@ html.dark .console-brand__daisy {
   padding: 8px 12px 20px !important;
 }
 
+.console-menu .ant-menu-sub.ant-menu-inline {
+  background: transparent !important;
+}
+
 .console-menu .ant-menu-item {
   position: relative;
 }
