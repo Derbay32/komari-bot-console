@@ -2,8 +2,9 @@
 
 import { Modal, Typography } from "antd";
 import { useCallback, useState } from "react";
-import Editor from "@monaco-editor/react";
 import { useTheme } from "next-themes";
+
+import { MonacoEditor } from "@/components/monaco-editor";
 
 interface JsonEditorModalProps {
   open: boolean;
@@ -88,7 +89,7 @@ export function JsonEditorModal({
           overflow: "hidden",
         }}
       >
-        <Editor
+        <MonacoEditor
           height="400px"
           language="json"
           theme={resolvedTheme === "dark" ? "vs-dark" : "vs"}
