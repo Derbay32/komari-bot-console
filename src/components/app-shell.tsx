@@ -33,7 +33,8 @@ const routeMap: Record<string, string> = {
   "/memory": "memory",
   "/announce": "announce",
   "/bans": "bans",
-  "/scenes": "scenes",
+  "/prompt/scenes": "prompt-scenes",
+  "/prompt/main": "prompt-main",
   "/config": "config",
   "/llm_logs": "logs",
 };
@@ -45,7 +46,8 @@ const titleMap: Record<string, string> = {
   "/memory": "记忆中心",
   "/announce": "公告通知",
   "/bans": "用户封禁",
-  "/scenes": "决策场景",
+  "/prompt/scenes": "决策场景",
+  "/prompt/main": "主提示词",
   "/config": "配置管理",
   "/llm_logs": "回复日志",
 };
@@ -53,7 +55,8 @@ const titleMap: Record<string, string> = {
 const CONFIG_ROUTE = "/config" as Route;
 const ANNOUNCE_ROUTE = "/announce" as Route;
 const BANS_ROUTE = "/bans" as Route;
-const SCENES_ROUTE = "/scenes" as Route;
+const SCENES_ROUTE = "/prompt/scenes" as Route;
+const PROMPT_MAIN_ROUTE = "/prompt/main" as Route;
 const HELP_ROUTE = "/help" as Route;
 const LOGS_ROUTE = "/llm_logs" as Route;
 
@@ -91,9 +94,13 @@ const menuItems: ItemType[] = [
     label: <Link href={BANS_ROUTE}>用户封禁</Link>,
   },
   {
-    key: "scenes",
+    key: "prompt",
     icon: <DeploymentUnitOutlined />,
-    label: <Link href={SCENES_ROUTE}>决策场景</Link>,
+    label: "提示词管理",
+    children: [
+      { key: "prompt-scenes", label: <Link href={SCENES_ROUTE}>决策场景</Link> },
+      { key: "prompt-main", label: <Link href={PROMPT_MAIN_ROUTE}>主提示词</Link> },
+    ],
   },
   {
     key: "config",
@@ -143,6 +150,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         className="console-menu"
         mode="inline"
         selectedKeys={[selectedKey]}
+        defaultOpenKeys={["prompt"]}
         items={menuItems}
         onClick={() => setMobileNavOpen(false)}
       />
