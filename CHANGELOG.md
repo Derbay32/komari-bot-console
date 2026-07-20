@@ -2,9 +2,21 @@
 
 本文档记录 Komari Bot Console 的重要版本变更。
 
-## [1.0.0-rc.1] - 2026-07-21
+---
 
-> 首个正式版本，重点补齐提示词、用户封禁与记忆数据管理能力，并完成管理后台的整体视觉翻新和发布流程迁移。
+## [v1.0.0-rc.2] - 2026-07-21
+
+> 1.0.0-rc.1 docker 构建修复。
+
+### 修复
+
+- 修复了 Docker 镜像因鉴权未通过，而导致启动失败的问题。
+
+完整更新日志: https://codeberg.org/Derbay32/komari-bot-console/compare/v1.0.0-rc.1...v1.0.0-rc.2
+
+## [v1.0.0-rc.1] - 2026-07-21
+
+> 首个正式预发布版本，重点补齐提示词、用户封禁与记忆数据管理能力，并完成管理后台的整体视觉翻新和发布流程迁移。
 > 对应 Komari Bot 版本 v1.3.0 预发布版及之后。
 
 ### 新增
@@ -48,7 +60,7 @@
 - 若此前依赖互动历史接口，请迁移至互动事件接口。
 - 若此前通过 `docker compose up --build` 本地构建镜像，请改用 Release 部署包中的 Compose 文件，或先自行构建并标记为 `komari-bot-console:latest`。
 
-[1.0.0]: https://codeberg.org/Derbay32/komari-bot-console/compare/v0.1.0-rc.1...v1.0.0
+完整更新日志: https://codeberg.org/Derbay32/komari-bot-console/compare/v0.1.0-rc.1...v1.0.0-rc.1
 
 ---
 
@@ -70,5 +82,8 @@
 
 | 版本 | 日期 | 类型 |
 |------|------|------|
+| v1.0.0-rc.2 | 2026-07-21 | RC |
 | v1.0.0-rc.1 | 2026-07-21 | RC |
 | v0.1.0-rc.1 | 2026-04-23 | RC |
+
+*本文档的最终更新日期为 2026-07-21。*
