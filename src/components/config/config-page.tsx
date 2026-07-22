@@ -58,6 +58,8 @@ type JsonFieldState = {
 
 const EMPTY_RESOURCES: ConfigResourceSummary[] = [];
 
+const READONLY_META_FIELDS = new Set(["version", "last_updated"]);
+
 export function ConfigPage() {
   const { message } = App.useApp();
   const resourcesQuery = useConfigResources();
@@ -87,11 +89,13 @@ export function ConfigPage() {
       return [];
     }
 
-    return selectedResource.fields.map((fieldName) => ({
-      fieldName,
-      description: selectedResource.field_descriptions?.[fieldName],
-      value: selectedResource.values[fieldName],
-    }));
+    return selectedResource.fields
+      .filter((fieldName) => !READONLY_META_FIELDS.has(fieldName))
+      .map((fieldName) => ({
+        fieldName,
+        description: selectedResource.field_descriptions?.[fieldName],
+        value: selectedResource.values[fieldName],
+      }));
   }, [selectedResource]);
 
   const handleOpenEditor = useCallback((fieldName: string, value: unknown) => {
@@ -367,6 +371,22 @@ export function ConfigPage() {
                     <Typography.Text strong>配置来源：</Typography.Text>
                     <Typography.Text>{selectedResource.config_source}</Typography.Text>
                   </div>
+                  {selectedResource.values.version !== undefined ? (
+                    <div>
+                      <Typography.Text strong>版本：</Typography.Text>
+                      <Typography.Text code>
+                        {formatMetaValue(selectedResource.values.version)}
+                      </Typography.Text>
+                    </div>
+                  ) : null}
+                  {selectedResource.values.last_updated !== undefined ? (
+                    <div>
+                      <Typography.Text strong>最后更新：</Typography.Text>
+                      <Typography.Text>
+                        {formatMetaValue(selectedResource.values.last_updated)}
+                      </Typography.Text>
+                    </div>
+                  ) : null}
                   <Space wrap size={[8, 8]}>
                     <Tag color="gold">字段数 {selectedResource.fields.length}</Tag>
                   </Space>
@@ -455,6 +475,23 @@ function renderConfigValue(value: unknown) {
       </Typography.Text>
     </Tooltip>
   );
+}
+
+function formatMetaValue(value: unknown): string {
+  if (typeof value === "number") {
+    // 10 位按秒、13 位按毫秒的 unix 时间戳转成可读时间，其余数字原样展示
+    if (value >= 1_000_000_000_000) {
+      return new Date(value).toLocaleString();
+    }
+    if (value >= 1_000_000_000 && value < 10_000_000_000) {
+      return new Date(value * 1000).toLocaleString();
+    }
+    return String(value);
+  }
+  if (typeof value === "string") {
+    return value;
+  }
+  return String(value ?? "");
 }
 
 function getPrimitiveMode(value: unknown): PrimitiveFieldState["mode"] {
@@ -560,12 +597,8 @@ function PrimitiveFieldModal({
           <Input value={description ?? "暂无说明"} disabled />
         </Form.Item>
         {field.mode === "string" ? (
-          <Form.Item
-            name="value"
-            label="字段值"
-            rules={[{ required: true, message: "请输入字段值" }]}
-          >
-            <Input.TextArea rows={4} placeholder="请输入字符串值" />
+          <Form.Item name="value" label="字段值">
+            <Input.TextArea rows={4} allowClear placeholder="请输入字符串值，留空即清空该字段" />
           </Form.Item>
         ) : null}
         {field.mode === "number" ? (
