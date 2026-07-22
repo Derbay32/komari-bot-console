@@ -22,7 +22,26 @@ export function buildAuditHeaders(
   const sanitizedReason = reason.trim() || "unspecified-change";
 
   return {
-    "X-Komari-Change-Reason": sanitizedReason.slice(0, 200),
+    "X-Komari-Change-Reason": toLatin1HeaderValue(
+      sanitizedReason.slice(0, 200),
+    ),
     "X-Request-ID": requestId,
   };
+}
+
+/**
+ * 浏览器 fetch 的请求头只允许 Latin-1 字符，中文会直接抛出 TypeError，
+ * 导致请求尚未发出就失败。
+ * 这里将字符串按 UTF-8 编码后逐字节映射为 Latin-1 字符，
+ * 后端会按 latin-1 → utf-8 还原出原文；纯 ASCII 内容不受影响。
+ */
+function toLatin1HeaderValue(value: string): string {
+  const bytes = new TextEncoder().encode(value);
+  let result = "";
+
+  for (const byte of bytes) {
+    result += String.fromCharCode(byte);
+  }
+
+  return result;
 }
