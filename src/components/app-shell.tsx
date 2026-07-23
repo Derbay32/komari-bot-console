@@ -49,7 +49,7 @@ const titleMap: Record<string, string> = {
   "/prompt/scenes": "决策场景",
   "/prompt/main": "主提示词",
   "/config": "配置管理",
-  "/llm_logs": "回复日志",
+  "/llm_logs": "运行日志",
 };
 
 const CONFIG_ROUTE = "/config" as Route;
@@ -110,7 +110,7 @@ const menuItems: ItemType[] = [
   {
     key: "logs",
     icon: <FileTextOutlined />,
-    label: <Link href={LOGS_ROUTE}>回复日志</Link>,
+    label: <Link href={LOGS_ROUTE}>运行日志</Link>,
   },
 ];
 
