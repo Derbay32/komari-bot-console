@@ -28,6 +28,7 @@ import {
 import type { ColumnsType } from "antd/es/table";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { observeCallback, observePromise } from "@/lib/async";
 import { JsonEditorModal } from "@/components/json-editor-modal";
 import { getRequestErrorMessage } from "@/lib/http/error";
 import {
@@ -131,10 +132,10 @@ export function ConfigPage() {
             value: normalizePrimitiveValue(primitiveField.mode, value),
           },
         });
-        message.success(`字段 ${primitiveField.fieldName} 更新成功`);
+        observePromise(message.success(`字段 ${primitiveField.fieldName} 更新成功`));
         setPrimitiveField(null);
       } catch (error) {
-        message.error(getRequestErrorMessage(error, `字段 ${primitiveField.fieldName} 更新失败`));
+        observePromise(message.error(getRequestErrorMessage(error, `字段 ${primitiveField.fieldName} 更新失败`)));
       }
     },
     [activeResourceId, message, primitiveField, updateFieldMutation],
@@ -156,10 +157,10 @@ export function ConfigPage() {
           fieldName: jsonField.fieldName,
           data: { value: payloadValue },
         });
-        message.success(`字段 ${jsonField.fieldName} 更新成功`);
+        observePromise(message.success(`字段 ${jsonField.fieldName} 更新成功`));
         setJsonField(null);
       } catch (error) {
-        message.error(getRequestErrorMessage(error, `字段 ${jsonField.fieldName} 更新失败`));
+        observePromise(message.error(getRequestErrorMessage(error, `字段 ${jsonField.fieldName} 更新失败`)));
       }
     },
     [activeResourceId, jsonField, message, selectedResource, updateFieldMutation],
@@ -172,9 +173,9 @@ export function ConfigPage() {
 
     try {
       await reloadConfigMutation.mutateAsync(activeResourceId);
-      message.success(`${selectedResource.display_name} 重载成功`);
+      observePromise(message.success(`${selectedResource.display_name} 重载成功`));
     } catch (error) {
-      message.error(getRequestErrorMessage(error, `${selectedResource.display_name} 重载失败`));
+      observePromise(message.error(getRequestErrorMessage(error, `${selectedResource.display_name} 重载失败`)));
     }
   }, [activeResourceId, message, reloadConfigMutation, selectedResource]);
 
@@ -429,7 +430,7 @@ export function ConfigPage() {
           value={jsonField.value}
           description={selectedResource?.field_descriptions?.[jsonField.fieldName]}
           onCancel={() => setJsonField(null)}
-          onOk={handleSubmitJson}
+          onOk={observeCallback(handleSubmitJson)}
           confirmLoading={updateFieldMutation.isPending}
         />
       ) : null}
@@ -585,7 +586,7 @@ function PrimitiveFieldModal({
       open
       title={`编辑字段 - ${field.fieldName}`}
       onCancel={onCancel}
-      onOk={handleOk}
+      onOk={observeCallback(handleOk)}
       confirmLoading={confirmLoading}
       destroyOnHidden
     >

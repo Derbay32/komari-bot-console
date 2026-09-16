@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { observePromise } from "@/lib/async";
 import { apiFetch } from "@/lib/http/client";
 import type { components } from "@/types/komari-api";
 
@@ -73,7 +74,7 @@ export function useCreateConversation() {
         body: data,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["conversations", "list"] });
+      observePromise(queryClient.invalidateQueries({ queryKey: ["conversations", "list"] }));
     },
   });
 }
@@ -93,7 +94,7 @@ export function useUpdateConversation() {
         { method: "PATCH", body: data },
       ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["conversations", "list"] });
+      observePromise(queryClient.invalidateQueries({ queryKey: ["conversations", "list"] }));
     },
   });
 }
@@ -107,7 +108,7 @@ export function useDeleteConversation() {
         { method: "DELETE" },
       ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["conversations", "list"] });
+      observePromise(queryClient.invalidateQueries({ queryKey: ["conversations", "list"] }));
     },
   });
 }

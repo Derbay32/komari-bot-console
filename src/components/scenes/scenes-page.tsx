@@ -24,6 +24,7 @@ import {
 } from "antd";
 import { useCallback, useEffect, useState } from "react";
 
+import { observeCallback, observePromise } from "@/lib/async";
 import type { components } from "@/types/komari-api";
 import { getRequestErrorMessage } from "@/lib/http/error";
 import { AuditReasonFormItem } from "@/components/audit-reason-form-item";
@@ -85,13 +86,15 @@ export function ScenesPage() {
       const result: SceneSyncResponse = await syncMutation.mutateAsync({
         auditReason: syncReason,
       });
-      message.success(
-        `同步${result.triggered ? "已触发" : "未触发"}：新增 ${result.inserted_count ?? 0}，就绪 ${result.ready_count ?? 0}，待处理 ${result.pending_count ?? 0}。${result.detail}`,
+      observePromise(
+        message.success(
+          `同步${result.triggered ? "已触发" : "未触发"}：新增 ${result.inserted_count ?? 0}，就绪 ${result.ready_count ?? 0}，待处理 ${result.pending_count ?? 0}。${result.detail}`,
+        ),
       );
       setSyncModalOpen(false);
       setSyncReason("");
     } catch (error) {
-      message.error(getRequestErrorMessage(error, "场景同步失败"));
+      observePromise(message.error(getRequestErrorMessage(error, "场景同步失败")));
     }
   }, [message, syncMutation, syncReason]);
 
@@ -105,13 +108,15 @@ export function ScenesPage() {
         data: { enabled: !toggleTarget.enabled },
         auditReason: toggleReason,
       });
-      message.success(
-        `场景「${toggleTarget.scene_key}」已${toggleTarget.enabled ? "禁用" : "启用"}`,
+      observePromise(
+        message.success(
+          `场景「${toggleTarget.scene_key}」已${toggleTarget.enabled ? "禁用" : "启用"}`,
+        ),
       );
       setToggleTarget(null);
       setToggleReason("");
     } catch (error) {
-      message.error(getRequestErrorMessage(error, "场景状态切换失败"));
+      observePromise(message.error(getRequestErrorMessage(error, "场景状态切换失败")));
     }
   }, [message, patchMutation, toggleReason, toggleTarget]);
 
@@ -195,7 +200,7 @@ export function ScenesPage() {
         <div className="page-header__actions">
           <Button
             icon={<ReloadOutlined />}
-            onClick={() => listQuery.refetch()}
+            onClick={observeCallback(() => listQuery.refetch())}
             loading={listQuery.isRefetching}
           >
             刷新
@@ -232,7 +237,7 @@ export function ScenesPage() {
           setSyncModalOpen(false);
           setSyncReason("");
         }}
-        onOk={handleSync}
+        onOk={observeCallback(handleSync)}
         okText="确认同步"
         confirmLoading={syncMutation.isPending}
         okButtonProps={{ disabled: !syncReason.trim() }}
@@ -257,7 +262,7 @@ export function ScenesPage() {
           setToggleTarget(null);
           setToggleReason("");
         }}
-        onOk={handleToggle}
+        onOk={observeCallback(handleToggle)}
         okText="确认"
         confirmLoading={patchMutation.isPending}
         okButtonProps={{ disabled: !toggleReason.trim() }}
@@ -327,7 +332,7 @@ function SceneEditDrawer({ sceneKey, onClose }: SceneEditDrawerProps) {
     }
 
     if (Object.keys(patch).length === 0) {
-      message.info("没有需要保存的变更");
+      observePromise(message.info("没有需要保存的变更"));
       onClose();
       return;
     }
@@ -338,10 +343,10 @@ function SceneEditDrawer({ sceneKey, onClose }: SceneEditDrawerProps) {
         data: patch,
         auditReason: values.auditReason,
       });
-      message.success("场景已更新");
+      observePromise(message.success("场景已更新"));
       onClose();
     } catch (error) {
-      message.error(getRequestErrorMessage(error, "场景更新失败"));
+      observePromise(message.error(getRequestErrorMessage(error, "场景更新失败")));
     }
   }, [sceneKey, detailQuery.data, form, message, onClose, patchMutation]);
 
@@ -354,7 +359,7 @@ function SceneEditDrawer({ sceneKey, onClose }: SceneEditDrawerProps) {
       extra={
         <Button
           type="primary"
-          onClick={handleSubmit}
+          onClick={observeCallback(handleSubmit)}
           loading={patchMutation.isPending}
         >
           保存

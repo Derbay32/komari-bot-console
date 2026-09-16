@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { observePromise } from "@/lib/async";
 import { buildAuditHeaders, createRequestId } from "@/lib/http/audit";
 import { apiFetch } from "@/lib/http/client";
 import type { components } from "@/types/komari-api";
@@ -52,8 +53,8 @@ export function useUpdateConfigField() {
         },
       ),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["config", "detail", variables.resourceId] });
-      queryClient.invalidateQueries({ queryKey: ["config", "resources"] });
+      observePromise(queryClient.invalidateQueries({ queryKey: ["config", "detail", variables.resourceId] }));
+      observePromise(queryClient.invalidateQueries({ queryKey: ["config", "resources"] }));
     },
   });
 }
@@ -74,8 +75,8 @@ export function useReloadConfig() {
         },
       ),
     onSuccess: (_, resourceId) => {
-      queryClient.invalidateQueries({ queryKey: ["config", "detail", resourceId] });
-      queryClient.invalidateQueries({ queryKey: ["config", "resources"] });
+      observePromise(queryClient.invalidateQueries({ queryKey: ["config", "detail", resourceId] }));
+      observePromise(queryClient.invalidateQueries({ queryKey: ["config", "resources"] }));
     },
   });
 }

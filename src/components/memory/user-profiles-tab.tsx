@@ -20,6 +20,7 @@ import {
 } from "antd";
 import { useCallback, useState } from "react";
 
+import { observeCallback, observePromise } from "@/lib/async";
 import type { components } from "@/types/komari-api";
 import { JsonEditorModal } from "@/components/json-editor-modal";
 import { getRequestErrorMessage } from "@/lib/http/error";
@@ -163,11 +164,11 @@ export function UserProfilesTab() {
           value,
           importance: editRecord.importance,
         });
-        message.success("用户画像更新成功");
+        observePromise(message.success("用户画像更新成功"));
         setEditModalOpen(false);
         setEditRecord(null);
       } catch (error) {
-        message.error(getRequestErrorMessage(error, "用户画像更新失败"));
+        observePromise(message.error(getRequestErrorMessage(error, "用户画像更新失败")));
       }
     },
     [editRecord, message, putMutation],
@@ -180,7 +181,7 @@ export function UserProfilesTab() {
           groupId: profile.groupId,
           userId: profile.userId,
         });
-        message.success("用户画像删除成功");
+        observePromise(message.success("用户画像删除成功"));
         setEditModalOpen(false);
         setEditRecord(null);
 
@@ -191,7 +192,7 @@ export function UserProfilesTab() {
           handleCloseDetail();
         }
       } catch (error) {
-        message.error(getRequestErrorMessage(error, "用户画像删除失败"));
+        observePromise(message.error(getRequestErrorMessage(error, "用户画像删除失败")));
       }
     },
     [deleteMutation, handleCloseDetail, message, selectedUser],
@@ -614,7 +615,7 @@ export function UserProfilesTab() {
             setEditModalOpen(false);
             setEditRecord(null);
           }}
-          onOk={handleEditOk}
+          onOk={observeCallback(handleEditOk)}
           confirmLoading={putMutation.isPending}
         />
       ) : null}

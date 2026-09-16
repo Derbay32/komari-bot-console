@@ -6,9 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
-    "gen:api": "node scripts/sync-openapi.mjs"
+    "lint": "eslint . --max-warnings 0",
+    "typecheck": "next typegen && tsc --noEmit",
+    "gen:api": "node scripts/sync-openapi.mjs",
+    "test:lint": "node --test tools/eslint/*.test.mjs",
+    "check": "npm run typecheck && npm run lint && npm run test:lint"
   },
   "dependencies": {
     "@ant-design/icons": "^6.1.1",
@@ -30,6 +32,7 @@
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.2.3",
     "openapi-typescript": "^7.13.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "typescript-eslint": "8.58.1"
   }
 }

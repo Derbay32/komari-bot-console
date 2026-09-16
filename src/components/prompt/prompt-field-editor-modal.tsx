@@ -4,6 +4,7 @@ import { Form, Modal } from "antd";
 import { useCallback, useState } from "react";
 import { useTheme } from "next-themes";
 
+import { observeCallback } from "@/lib/async";
 import { AuditReasonFormItem } from "@/components/audit-reason-form-item";
 import { MonacoEditor } from "@/components/monaco-editor";
 
@@ -64,7 +65,7 @@ export function PromptFieldEditorModal({
       open={open}
       title={title}
       onCancel={onCancel}
-      onOk={handleOk}
+      onOk={observeCallback(handleOk)}
       confirmLoading={confirmLoading}
       width={720}
       destroyOnHidden
