@@ -1,0 +1,155 @@
+name: GHCR 容器镜像发布
+
+on:
+  # 发布正式或预发布 Release 时构建对应版本
+  release:
+    types: [published]
+  # 推送 beta/rc tag 时构建镜像并自动创建预发布 Release
+  push:
+    tags:
+      - "v*-beta*"
+      - "v*-rc*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ghcr-release-${{ github.event.release.tag_name || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: 准备发布上下文
+        id: release_context
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          TAG_NAME="${RELEASE_TAG:-$REF_NAME}"
+          IMAGE_TAG="${TAG_NAME#v}"
+          if [[ ! "$IMAGE_TAG" =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,127}$ ]]; then
+            echo "发布标签无法转换为有效的 Docker 镜像标签" >&2
+            exit 1
+          fi
+
+          COMMIT_SHA="$(git rev-parse HEAD)"
+          IMAGE_NAME="$(printf '%s' "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')"
+          echo "DOCKER_IMAGE=ghcr.io/${IMAGE_NAME}" >> "$GITHUB_ENV"
+          {
+            echo "tag_name=$TAG_NAME"
+            echo "image_tag=$IMAGE_TAG"
+            echo "commit_sha=$COMMIT_SHA"
+            echo "short_sha=${COMMIT_SHA:0:12}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: 设置 Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: 登录 GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: 构建并发布 Docker 镜像
+        env:
+          IMAGE_TAG: ${{ steps.release_context.outputs.image_tag }}
+          SHORT_SHA: ${{ steps.release_context.outputs.short_sha }}
+          COMMIT_SHA: ${{ steps.release_context.outputs.commit_sha }}
+          EVENT_NAME: ${{ github.event_name }}
+          IS_PRERELEASE: ${{ github.event.release.prerelease }}
+        run: |
+          set -euo pipefail
+
+          TAG_ARGS=(
+            --tag "${DOCKER_IMAGE}:${IMAGE_TAG}"
+            --tag "${DOCKER_IMAGE}:sha-${SHORT_SHA}"
+          )
+
+          # 仅正式的 x.y.z 版本更新稳定标签，预发布不能覆盖 latest。
+          if [[ "$EVENT_NAME" == "release" && "$IS_PRERELEASE" == "false" && "$IMAGE_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            MAJOR_MINOR="${IMAGE_TAG%.*}"
+            TAG_ARGS+=(--tag "${DOCKER_IMAGE}:${MAJOR_MINOR}")
+            TAG_ARGS+=(--tag "${DOCKER_IMAGE}:latest")
+          fi
+
+          docker buildx build \
+            --push \
+            "${TAG_ARGS[@]}" \
+            --label "org.opencontainers.image.source=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" \
+            --label "org.opencontainers.image.revision=${COMMIT_SHA}" \
+            --label "org.opencontainers.image.version=${IMAGE_TAG}" \
+            .
+
+      - name: 打包部署文件
+        id: deploy_package
+        env:
+          TAG_NAME: ${{ steps.release_context.outputs.tag_name }}
+          IMAGE_TAG: ${{ steps.release_context.outputs.image_tag }}
+        run: |
+          set -euo pipefail
+
+          ASSET_NAME="komari-bot-console-${TAG_NAME}.tar.gz"
+          mkdir -p komari-bot-console-deploy
+          cp docker-compose.yaml komari-bot-console-deploy/docker-compose.yaml
+          cp .env.example komari-bot-console-deploy/.env.example
+
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          docker_image = os.environ["DOCKER_IMAGE"]
+          image_tag = os.environ["IMAGE_TAG"]
+          compose_path = Path("komari-bot-console-deploy/docker-compose.yaml")
+          content = compose_path.read_text(encoding="utf-8")
+          source_image = "image: komari-bot-console:latest"
+          if source_image not in content:
+              raise SystemExit("部署模板缺少预期的镜像配置")
+          content = content.replace(source_image, f"image: {docker_image}:{image_tag}")
+          compose_path.write_text(content, encoding="utf-8")
+          PY
+
+          tar -czf "$ASSET_NAME" \
+            -C komari-bot-console-deploy \
+            docker-compose.yaml \
+            .env.example
+          echo "asset_name=$ASSET_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: 发布 GitHub Release 部署包
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          TAG_NAME: ${{ steps.release_context.outputs.tag_name }}
+          ASSET_NAME: ${{ steps.deploy_package.outputs.asset_name }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$EVENT_NAME" == "push" ]] && ! gh release view "$TAG_NAME" > /dev/null; then
+            # 使用 GITHUB_TOKEN 创建 Release 不会递归触发本工作流。
+            gh release create "$TAG_NAME" "$ASSET_NAME" \
+              --verify-tag \
+              --prerelease \
+              --latest=false \
+              --title "预发布版本 ${TAG_NAME}" \
+              --notes "自动化构建的预发布版本"
+          else
+            gh release upload "$TAG_NAME" "$ASSET_NAME" --clobber
+          fi

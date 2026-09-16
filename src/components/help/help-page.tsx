@@ -27,6 +27,7 @@ import {
 import type { TableColumnsType } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { observeCallback, observePromise } from "@/lib/async";
 import { getRequestErrorMessage } from "@/lib/http/error";
 import {
   useCreateHelp,
@@ -104,18 +105,20 @@ export function HelpPage() {
       try {
         if (editingRecord) {
           await updateMutation.mutateAsync({ hid: editingRecord.id, data: values });
-          message.success("帮助条目更新成功");
+          observePromise(message.success("帮助条目更新成功"));
         } else {
           await createMutation.mutateAsync(values);
-          message.success("帮助条目创建成功");
+          observePromise(message.success("帮助条目创建成功"));
         }
         setEditModalOpen(false);
         setEditingRecord(null);
       } catch (error) {
-        message.error(
-          getRequestErrorMessage(
-            error,
-            editingRecord ? "帮助条目更新失败" : "帮助条目创建失败",
+        observePromise(
+          message.error(
+            getRequestErrorMessage(
+              error,
+              editingRecord ? "帮助条目更新失败" : "帮助条目创建失败",
+            ),
           ),
         );
       }
@@ -127,9 +130,9 @@ export function HelpPage() {
     async (hid: number) => {
       try {
         await deleteMutation.mutateAsync(hid);
-        message.success("帮助条目删除成功");
+        observePromise(message.success("帮助条目删除成功"));
       } catch (error) {
-        message.error(getRequestErrorMessage(error, "帮助条目删除失败"));
+        observePromise(message.error(getRequestErrorMessage(error, "帮助条目删除失败")));
       }
     },
     [deleteMutation, message],
@@ -138,15 +141,15 @@ export function HelpPage() {
   const handleScan = useCallback(async () => {
     try {
       const result = await scanMutation.mutateAsync();
-      message.success(`扫描完成，更新 ${result.updated_count} 条帮助文档`);
+      observePromise(message.success(`扫描完成，更新 ${result.updated_count} 条帮助文档`));
     } catch (error) {
-      message.error(getRequestErrorMessage(error, "扫描帮助文档失败"));
+      observePromise(message.error(getRequestErrorMessage(error, "扫描帮助文档失败")));
     }
   }, [message, scanMutation]);
 
   const handleSearch = useCallback(async () => {
     if (!searchQuery.trim()) {
-      message.warning("请输入搜索内容");
+      observePromise(message.warning("请输入搜索内容"));
       return;
     }
 
@@ -156,7 +159,7 @@ export function HelpPage() {
         limit: searchLimit,
       });
     } catch (error) {
-      message.error(getRequestErrorMessage(error, "帮助文档搜索失败"));
+      observePromise(message.error(getRequestErrorMessage(error, "帮助文档搜索失败")));
     }
   }, [message, searchLimit, searchMutation, searchQuery]);
 
@@ -250,7 +253,7 @@ export function HelpPage() {
             type="primary"
             icon={<ReloadOutlined />}
             loading={scanMutation.isPending}
-            onClick={handleScan}
+            onClick={observeCallback(handleScan)}
           >
             扫描生成
           </Button>
@@ -336,7 +339,7 @@ export function HelpPage() {
               placeholder="输入搜索 query"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              onPressEnter={handleSearch}
+              onPressEnter={observeCallback(handleSearch)}
             />
             <InputNumber
               min={1}
@@ -349,7 +352,7 @@ export function HelpPage() {
               type="primary"
               icon={<SearchOutlined />}
               loading={searchMutation.isPending}
-              onClick={handleSearch}
+              onClick={observeCallback(handleSearch)}
             >
               搜索
             </Button>
@@ -424,7 +427,7 @@ function HelpEditModal({
       open={open}
       title={record ? "编辑帮助条目" : "新增帮助条目"}
       onCancel={onCancel}
-      onOk={handleOk}
+      onOk={observeCallback(handleOk)}
       confirmLoading={confirmLoading}
       width={720}
     >

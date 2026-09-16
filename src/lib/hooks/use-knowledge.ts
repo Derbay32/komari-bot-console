@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { observePromise } from "@/lib/async";
 import { apiFetch } from "@/lib/http/client";
 import type { components } from "@/types/komari-api";
 
@@ -44,7 +45,7 @@ export function useCreateKnowledge() {
         body: data,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["knowledge", "list"] });
+      observePromise(queryClient.invalidateQueries({ queryKey: ["knowledge", "list"] }));
     },
   });
 }
@@ -58,7 +59,7 @@ export function useUpdateKnowledge() {
         body: data,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["knowledge", "list"] });
+      observePromise(queryClient.invalidateQueries({ queryKey: ["knowledge", "list"] }));
     },
   });
 }
@@ -71,7 +72,7 @@ export function useDeleteKnowledge() {
         method: "DELETE",
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["knowledge", "list"] });
+      observePromise(queryClient.invalidateQueries({ queryKey: ["knowledge", "list"] }));
     },
   });
 }

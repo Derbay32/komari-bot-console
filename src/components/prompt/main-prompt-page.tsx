@@ -17,6 +17,7 @@ import {
 import type { ColumnsType } from "antd/es/table";
 import { useCallback, useMemo, useState } from "react";
 
+import { observePromise } from "@/lib/async";
 import { PromptFieldEditorModal } from "@/components/prompt/prompt-field-editor-modal";
 import { getRequestErrorMessage } from "@/lib/http/error";
 import {
@@ -90,10 +91,10 @@ export function MainPromptPage() {
           auditReason,
           data: { value },
         });
-        message.success(`字段 ${editingField.fieldName} 更新成功`);
+        observePromise(message.success(`字段 ${editingField.fieldName} 更新成功`));
         setEditingField(null);
       } catch (error) {
-        message.error(getRequestErrorMessage(error, `字段 ${editingField.fieldName} 更新失败`));
+        observePromise(message.error(getRequestErrorMessage(error, `字段 ${editingField.fieldName} 更新失败`)));
       }
     },
     [activeResourceId, editingField, message, updateFieldMutation],

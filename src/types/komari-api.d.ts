@@ -320,15 +320,15 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/llm-provider/v1/reply-logs": {
+    "/api/agent-run-logs/v1/runs": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** List Reply Logs */
-        get: operations["list_reply_logs_api_llm_provider_v1_reply_logs_get"];
+        /** List Runs */
+        get: operations["list_runs_api_agent_run_logs_v1_runs_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -337,15 +337,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/llm-provider/v1/reply-logs/{date}/{line_number}": {
+    "/api/agent-run-logs/v1/runs/{run_id}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Get Reply Log */
-        get: operations["get_reply_log_api_llm_provider_v1_reply_logs__date___line_number__get"];
+        /** Get Run */
+        get: operations["get_run_api_agent_run_logs_v1_runs__run_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/llm-provider/v1/reply-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Legacy Logs
+         * @deprecated
+         */
+        get: operations["list_legacy_logs_api_llm_provider_v1_reply_logs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/llm-provider/v1/reply-logs/{log_date}/{line_number}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Legacy Log
+         * @deprecated
+         */
+        get: operations["get_legacy_log_api_llm_provider_v1_reply_logs__log_date___line_number__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -635,6 +675,139 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AgentRunDetail
+         * @description 权威 JSONL v3 完整任务日志。
+         */
+        AgentRunDetail: {
+            /**
+             * Schema Version
+             * @default 3
+             */
+            schema_version: number;
+            /** Run Id */
+            run_id: string;
+            /** Trace Id */
+            trace_id: string;
+            /** Run Type */
+            run_type: string;
+            /** Task Kind */
+            task_kind: string;
+            /** Origin */
+            origin: string;
+            /** Status */
+            status: string;
+            /** Started At */
+            started_at: string;
+            /** Finished At */
+            finished_at: string;
+            /** Duration Ms */
+            duration_ms: number;
+            /** Input */
+            input?: unknown;
+            /** Output */
+            output?: unknown;
+            /** Error */
+            error?: unknown;
+            /** Rounds */
+            rounds?: {
+                [key: string]: unknown;
+            }[];
+            /** Tool Executions */
+            tool_executions?: {
+                [key: string]: unknown;
+            }[];
+            /** Errors */
+            errors?: {
+                [key: string]: unknown;
+            }[];
+            /** Models */
+            models?: string[];
+            /** Methods */
+            methods?: string[];
+            /** Usage */
+            usage?: {
+                [key: string]: unknown;
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * AgentRunListItem
+         * @description 当前页从 JSONL 临时生成正文预览的任务摘要。
+         */
+        AgentRunListItem: {
+            /** Run Id */
+            run_id: string;
+            /** Trace Id */
+            trace_id: string;
+            /** Date */
+            date: string;
+            /** Run Type */
+            run_type: string;
+            /** Task Kind */
+            task_kind: string;
+            /**
+             * Origin
+             * @enum {string}
+             */
+            origin: "normal" | "debug";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "success" | "error" | "cancelled";
+            /** Started At */
+            started_at: string;
+            /** Finished At */
+            finished_at: string;
+            /** Duration Ms */
+            duration_ms?: number | null;
+            /** Models */
+            models?: string[];
+            /** Methods */
+            methods?: string[];
+            /**
+             * Round Count
+             * @default 0
+             */
+            round_count: number;
+            /**
+             * Tool Count
+             * @default 0
+             */
+            tool_count: number;
+            /** Usage */
+            usage?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Input Preview
+             * @default
+             */
+            input_preview: string;
+            /**
+             * Output Preview
+             * @default
+             */
+            output_preview: string;
+            /**
+             * Error Preview
+             * @default
+             */
+            error_preview: string;
+        };
+        /** AgentRunListResponse */
+        AgentRunListResponse: {
+            /** Items */
+            items: components["schemas"]["AgentRunListItem"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
         /**
          * AnnounceResult
          * @description 单个群发送结果。
@@ -1504,146 +1677,6 @@ export interface components {
             file_path?: string | null;
             /** Fields */
             fields: string[];
-        };
-        /**
-         * ReplyLogDetail
-         * @description reply 日志详情，仅包含脱敏元数据。
-         */
-        ReplyLogDetail: {
-            /** Date */
-            date: string;
-            /** Line Number */
-            line_number: number;
-            /**
-             * Schema Version
-             * @default 2
-             */
-            schema_version: number;
-            /** Timestamp */
-            timestamp: string;
-            /** Method */
-            method: string;
-            /** Model */
-            model: string;
-            /**
-             * Trace Id
-             * @default
-             */
-            trace_id: string;
-            /**
-             * Phase
-             * @default
-             */
-            phase: string;
-            /** Duration Ms */
-            duration_ms?: number | null;
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "success" | "error";
-            /** Finish Reason */
-            finish_reason?: string | null;
-            /** Tool Calls Count */
-            tool_calls_count?: number | null;
-            /**
-             * Reasoning Chars
-             * @default 0
-             */
-            reasoning_chars: number;
-            /** Input Summary */
-            input_summary?: {
-                [key: string]: unknown;
-            };
-            /** Output Summary */
-            output_summary?: {
-                [key: string]: unknown;
-            } | null;
-            /** Error Summary */
-            error_summary?: {
-                [key: string]: unknown;
-            } | null;
-            /** Usage */
-            usage?: {
-                [key: string]: number;
-            } | null;
-        };
-        /**
-         * ReplyLogListItem
-         * @description reply 日志摘要。
-         */
-        ReplyLogListItem: {
-            /** Date */
-            date: string;
-            /** Line Number */
-            line_number: number;
-            /**
-             * Schema Version
-             * @default 2
-             */
-            schema_version: number;
-            /** Timestamp */
-            timestamp: string;
-            /** Method */
-            method: string;
-            /** Model */
-            model: string;
-            /**
-             * Trace Id
-             * @default
-             */
-            trace_id: string;
-            /**
-             * Phase
-             * @default
-             */
-            phase: string;
-            /** Duration Ms */
-            duration_ms?: number | null;
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "success" | "error";
-            /** Finish Reason */
-            finish_reason?: string | null;
-            /** Tool Calls Count */
-            tool_calls_count?: number | null;
-            /**
-             * Reasoning Chars
-             * @default 0
-             */
-            reasoning_chars: number;
-            /** Input Summary */
-            input_summary?: {
-                [key: string]: unknown;
-            };
-            /** Output Summary */
-            output_summary?: {
-                [key: string]: unknown;
-            } | null;
-            /** Error Summary */
-            error_summary?: {
-                [key: string]: unknown;
-            } | null;
-            /** Usage */
-            usage?: {
-                [key: string]: number;
-            } | null;
-        };
-        /**
-         * ReplyLogListResponse
-         * @description reply 日志列表响应。
-         */
-        ReplyLogListResponse: {
-            /** Items */
-            items: components["schemas"]["ReplyLogListItem"][];
-            /** Total */
-            total: number;
-            /** Limit */
-            limit: number;
-            /** Offset */
-            offset: number;
         };
         /**
          * SceneDetail
@@ -2815,15 +2848,18 @@ export interface operations {
             };
         };
     };
-    list_reply_logs_api_llm_provider_v1_reply_logs_get: {
+    list_runs_api_agent_run_logs_v1_runs_get: {
         parameters: {
             query?: {
                 date?: string | null;
                 days?: number;
+                run_type?: string | null;
+                task_kind?: string | null;
+                origin?: ("normal" | "debug") | null;
                 trace_id?: string | null;
+                status?: ("success" | "error" | "cancelled") | null;
                 model?: string | null;
                 method?: string | null;
-                status?: ("success" | "error") | null;
                 limit?: number;
                 offset?: number;
             };
@@ -2839,7 +2875,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ReplyLogListResponse"];
+                    "application/json": components["schemas"]["AgentRunListResponse"];
                 };
             };
             /** @description Validation Error */
@@ -2853,12 +2889,81 @@ export interface operations {
             };
         };
     };
-    get_reply_log_api_llm_provider_v1_reply_logs__date___line_number__get: {
+    get_run_api_agent_run_logs_v1_runs__run_id__get: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                date: string;
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRunDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_legacy_logs_api_llm_provider_v1_reply_logs_get: {
+        parameters: {
+            query?: {
+                date?: string | null;
+                days?: number;
+                trace_id?: string | null;
+                model?: string | null;
+                method?: string | null;
+                status?: ("success" | "error" | "cancelled") | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRunListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_legacy_log_api_llm_provider_v1_reply_logs__log_date___line_number__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                log_date: string;
                 line_number: number;
             };
             cookie?: never;
@@ -2871,7 +2976,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ReplyLogDetail"];
+                    "application/json": components["schemas"]["AgentRunDetail"];
                 };
             };
             /** @description Validation Error */

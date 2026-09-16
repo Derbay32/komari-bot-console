@@ -30,7 +30,20 @@ import type { components } from "@/types/komari-api";
 type ConversationListResponse = components["schemas"]["ConversationListResponse"];
 type KnowledgeListResponse = components["schemas"]["KnowledgeListResponse"];
 type MemoryEntityListResponse = components["schemas"]["MemoryEntityListResponse"];
-type ReplyLogListResponse = components["schemas"]["ReplyLogListResponse"];
+type AgentRunListResponse = components["schemas"]["AgentRunListResponse"];
+
+function runStatusColor(status: string): string {
+  switch (status) {
+    case "success":
+      return "success";
+    case "error":
+      return "error";
+    case "cancelled":
+      return "default";
+    default:
+      return "processing";
+  }
+}
 
 type OverviewCardItem = {
   href: Route;
@@ -62,7 +75,7 @@ export function DashboardOverview() {
         apiFetch<MemoryEntityListResponse>("/api/komari-memory/v1/user-profiles", {
           params: { limit: 1, offset: 0 },
         }),
-        apiFetch<ReplyLogListResponse>("/api/llm-provider/v1/reply-logs", {
+        apiFetch<AgentRunListResponse>("/api/agent-run-logs/v1/runs", {
           params: { limit: 5, offset: 0 },
         }),
       ]);
@@ -125,25 +138,24 @@ export function DashboardOverview() {
         ))}
       </Row>
 
-      <Card className="glass-card" title="最近 Reply 日志" variant="borderless">
+      <Card className="glass-card" title="最近运行日志" variant="borderless">
         {overviewQuery.isPending ? (
           <Skeleton active paragraph={{ rows: 4 }} />
         ) : overviewQuery.data?.latestLogs.length ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {overviewQuery.data.latestLogs.map((item) => (
               <div
-                key={`${item.date}-${item.line_number}`}
+                key={item.run_id}
                 className="log-item dashboard-log-card"
               >
-                <Tag color={item.status === "success" ? "success" : "error"}>
-                  {item.status}
-                </Tag>
+                <Tag color={runStatusColor(item.status)}>{item.status}</Tag>
                 <div className="log-item__meta">
                   <Typography.Text strong>
-                    {item.method} · {item.model}
+                    {item.run_type} · {item.task_kind}
                   </Typography.Text>
                   <div className="log-item__line">
-                    {item.timestamp} · {item.phase || "未标记阶段"} · 行号 {item.line_number}
+                    {item.started_at} · 来源 {item.origin} · {item.round_count} 轮 ·{" "}
+                    {item.tool_count} 次工具调用
                     {typeof item.duration_ms === "number"
                       ? ` · ${Math.round(item.duration_ms)}ms`
                       : ""}

@@ -1,10 +1,10 @@
 # Nestjs specific
-/dist
-/node_modules
-/build
-/tmp
-/docs
-/.next
+dist/
+node_modules/
+build/
+tmp/
+docs/
+.next/
 tsconfig.tsbuildinfo
 
 # Logs
@@ -27,17 +27,22 @@ lerna-debug.log*
 .tmp
 
 # others
-/openapi
+openapi/
 secret.json
 
-# Kilo Code
-/.kilo
-/.codeartsdoer
-/.playwright-mcp
+# Coding Agents
+.pi/
+.agents/
+.codeartsdoer/
+.playwright-mcp/
 
 # VS Code
-.vscode
+.vscode/
 
 # OS
 .DS_Store
-/others
+others/
+
+# ADR docs
+!docs/adr/*
+!docs/adr
