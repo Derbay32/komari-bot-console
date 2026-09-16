@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { observePromise } from "@/lib/async";
 import { apiFetch } from "@/lib/http/client";
 import { buildAuditHeaders } from "@/lib/http/audit";
 import type { components } from "@/types/komari-api";
@@ -48,7 +49,7 @@ export function usePatchScene() {
         },
       ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["scenes"] });
+      observePromise(queryClient.invalidateQueries({ queryKey: ["scenes"] }));
     },
   });
 }
@@ -62,7 +63,7 @@ export function useSyncScenes() {
         headers: buildAuditHeaders(auditReason),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["scenes"] });
+      observePromise(queryClient.invalidateQueries({ queryKey: ["scenes"] }));
     },
   });
 }

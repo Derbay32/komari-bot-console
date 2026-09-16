@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { observePromise } from "@/lib/async";
 import { apiFetch } from "@/lib/http/client";
 import { buildAuditHeaders } from "@/lib/http/audit";
 import type { components } from "@/types/komari-api";
@@ -39,7 +40,7 @@ export function useCreateOrUpdateBan() {
         body: data,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["bans", "list"] });
+      observePromise(queryClient.invalidateQueries({ queryKey: ["bans", "list"] }));
     },
   });
 }
@@ -64,7 +65,7 @@ export function useDeleteBan() {
         },
       ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["bans", "list"] });
+      observePromise(queryClient.invalidateQueries({ queryKey: ["bans", "list"] }));
     },
   });
 }

@@ -28,6 +28,7 @@ import {
 } from "antd";
 import { useCallback, useEffect, useState } from "react";
 
+import { observeCallback, observePromise } from "@/lib/async";
 import type { components } from "@/types/komari-api";
 import { getRequestErrorMessage } from "@/lib/http/error";
 import { formatDateTime } from "@/lib/format";
@@ -139,7 +140,7 @@ export function ConversationsTab() {
             conversationId: editingRecord.id,
             data: updateValues,
           });
-          message.success("对话更新成功");
+          observePromise(message.success("对话更新成功"));
         } else {
           const createValues: ConversationCreateRequest = {
             group_id: values.group_id,
@@ -148,15 +149,17 @@ export function ConversationsTab() {
             importance_initial: values.importance_initial,
           };
           await createMutation.mutateAsync(createValues);
-          message.success("对话创建成功");
+          observePromise(message.success("对话创建成功"));
         }
         setEditModalOpen(false);
         setEditingRecord(null);
       } catch (error) {
-        message.error(
-          getRequestErrorMessage(
-            error,
-            editingRecord ? "对话更新失败" : "对话创建失败",
+        observePromise(
+          message.error(
+            getRequestErrorMessage(
+              error,
+              editingRecord ? "对话更新失败" : "对话创建失败",
+            ),
           ),
         );
       }
@@ -168,9 +171,9 @@ export function ConversationsTab() {
     async (id: number) => {
       try {
         await deleteMutation.mutateAsync(id);
-        message.success("对话删除成功");
+        observePromise(message.success("对话删除成功"));
       } catch (error) {
-        message.error(getRequestErrorMessage(error, "对话删除失败"));
+        observePromise(message.error(getRequestErrorMessage(error, "对话删除失败")));
       }
     },
     [deleteMutation, message],
@@ -545,7 +548,7 @@ function ConversationEditModal({
       open={open}
       title={record ? "编辑对话" : "新增对话"}
       onCancel={onCancel}
-      onOk={handleOk}
+      onOk={observeCallback(handleOk)}
       confirmLoading={confirmLoading}
       width={600}
     >

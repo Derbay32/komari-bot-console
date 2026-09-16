@@ -26,6 +26,7 @@ import {
 } from "antd";
 import { useCallback, useEffect, useState } from "react";
 
+import { observeCallback, observePromise } from "@/lib/async";
 import type { components } from "@/types/komari-api";
 import { getRequestErrorMessage } from "@/lib/http/error";
 import { formatDateTime } from "@/lib/format";
@@ -102,11 +103,11 @@ export function InteractionsTab() {
           eventId: editingRecord.id,
           data: values,
         });
-        message.success("互动事件更新成功");
+        observePromise(message.success("互动事件更新成功"));
         setEditModalOpen(false);
         setEditingRecord(null);
       } catch (error) {
-        message.error(getRequestErrorMessage(error, "互动事件更新失败"));
+        observePromise(message.error(getRequestErrorMessage(error, "互动事件更新失败")));
       }
     },
     [editingRecord, message, updateMutation],
@@ -116,9 +117,9 @@ export function InteractionsTab() {
     async (eventId: number) => {
       try {
         await deleteMutation.mutateAsync(eventId);
-        message.success("互动事件删除成功");
+        observePromise(message.success("互动事件删除成功"));
       } catch (error) {
-        message.error(getRequestErrorMessage(error, "互动事件删除失败"));
+        observePromise(message.error(getRequestErrorMessage(error, "互动事件删除失败")));
       }
     },
     [deleteMutation, message],
@@ -221,7 +222,7 @@ export function InteractionsTab() {
           <Button onClick={handleReset}>重置</Button>
           <Button
             icon={<ReloadOutlined />}
-            onClick={() => listQuery.refetch()}
+            onClick={observeCallback(() => listQuery.refetch())}
             loading={listQuery.isRefetching}
           >
             刷新
@@ -359,7 +360,7 @@ function InteractionEditModal({
       open={open}
       title={`编辑互动事件 #${record?.id ?? ""}`}
       onCancel={onCancel}
-      onOk={handleOk}
+      onOk={observeCallback(handleOk)}
       confirmLoading={confirmLoading}
       width={560}
     >

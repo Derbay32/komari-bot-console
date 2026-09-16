@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { observePromise } from "@/lib/async";
 import { apiFetch } from "@/lib/http/client";
 import type { components } from "@/types/komari-api";
 
@@ -33,9 +34,11 @@ export function useRequeueConversationDeadLetter() {
         { method: "POST" },
       ),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["conversation-dead-letters", "list"],
-      });
+      observePromise(
+        queryClient.invalidateQueries({
+          queryKey: ["conversation-dead-letters", "list"],
+        }),
+      );
     },
   });
 }
