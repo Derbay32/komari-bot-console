@@ -1,0 +1,629 @@
+"use client";
+
+import {
+  EditOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
+  ReloadOutlined,
+} from "@ant-design/icons";
+import {
+  Alert,
+  App,
+  Button,
+  Card,
+  Empty,
+  Form,
+  Input,
+  InputNumber,
+  Menu,
+  Modal,
+  Popconfirm,
+  Space,
+  Switch,
+  Table,
+  Tag,
+  Tooltip,
+  Typography,
+} from "antd";
+import type { ColumnsType } from "antd/es/table";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+import { JsonEditorModal } from "@/components/json-editor-modal";
+import { getRequestErrorMessage } from "@/lib/http/error";
+import {
+  useConfigDetail,
+  useConfigResources,
+  useReloadConfig,
+  useUpdateConfigField,
+} from "@/lib/hooks/use-config";
+import type { components } from "@/types/komari-api";
+
+type ConfigResourceSummary = components["schemas"]["ConfigResourceSummary"];
+type ConfigFieldRow = {
+  fieldName: string;
+  description?: string;
+  value: unknown;
+};
+
+type PrimitiveFieldState = {
+  fieldName: string;
+  mode: "string" | "number" | "boolean" | "null";
+  value: unknown;
+};
+
+type JsonFieldState = {
+  fieldName: string;
+  value: Record<string, unknown>;
+};
+
+const EMPTY_RESOURCES: ConfigResourceSummary[] = [];
+
+const READONLY_META_FIELDS = new Set(["version", "last_updated"]);
+
+export function ConfigPage() {
+  const { message } = App.useApp();
+  const resourcesQuery = useConfigResources();
+  const resources = resourcesQuery.data?.items ?? EMPTY_RESOURCES;
+  const [selectedResourceId, setSelectedResourceId] = useState<string | null>(null);
+  const [isResourceCollapsed, setIsResourceCollapsed] = useState(false);
+  const activeResourceId = useMemo(() => {
+    if (!resources.length) {
+      return null;
+    }
+
+    if (selectedResourceId && resources.some((item) => item.resource_id === selectedResourceId)) {
+      return selectedResourceId;
+    }
+
+    return resources[0]?.resource_id ?? null;
+  }, [resources, selectedResourceId]);
+  const detailQuery = useConfigDetail(activeResourceId);
+  const updateFieldMutation = useUpdateConfigField();
+  const reloadConfigMutation = useReloadConfig();
+  const [primitiveField, setPrimitiveField] = useState<PrimitiveFieldState | null>(null);
+  const [jsonField, setJsonField] = useState<JsonFieldState | null>(null);
+
+  const selectedResource = detailQuery.data;
+  const fieldRows = useMemo<ConfigFieldRow[]>(() => {
+    if (!selectedResource) {
+      return [];
+    }
+
+    return selectedResource.fields
+      .filter((fieldName) => !READONLY_META_FIELDS.has(fieldName))
+      .map((fieldName) => ({
+        fieldName,
+        description: selectedResource.field_descriptions?.[fieldName],
+        value: selectedResource.values[fieldName],
+      }));
+  }, [selectedResource]);
+
+  const handleOpenEditor = useCallback((fieldName: string, value: unknown) => {
+    if (Array.isArray(value)) {
+      setJsonField({ fieldName, value: { items: value } });
+      return;
+    }
+
+    if (isRecord(value)) {
+      setJsonField({ fieldName, value });
+      return;
+    }
+
+    const mode = getPrimitiveMode(value);
+    setPrimitiveField({
+      fieldName,
+      mode,
+      value,
+    });
+  }, []);
+
+  const handleSubmitPrimitive = useCallback(
+    async (value: unknown) => {
+      if (!primitiveField || !activeResourceId) {
+        return;
+      }
+
+      try {
+        await updateFieldMutation.mutateAsync({
+          resourceId: activeResourceId,
+          fieldName: primitiveField.fieldName,
+          data: {
+            value: normalizePrimitiveValue(primitiveField.mode, value),
+          },
+        });
+        message.success(`字段 ${primitiveField.fieldName} 更新成功`);
+        setPrimitiveField(null);
+      } catch (error) {
+        message.error(getRequestErrorMessage(error, `字段 ${primitiveField.fieldName} 更新失败`));
+      }
+    },
+    [activeResourceId, message, primitiveField, updateFieldMutation],
+  );
+
+  const handleSubmitJson = useCallback(
+    async (value: Record<string, unknown>) => {
+      if (!jsonField || !activeResourceId) {
+        return;
+      }
+
+      const payloadValue = Array.isArray(selectedResource?.values[jsonField.fieldName])
+        ? (value.items ?? [])
+        : value;
+
+      try {
+        await updateFieldMutation.mutateAsync({
+          resourceId: activeResourceId,
+          fieldName: jsonField.fieldName,
+          data: { value: payloadValue },
+        });
+        message.success(`字段 ${jsonField.fieldName} 更新成功`);
+        setJsonField(null);
+      } catch (error) {
+        message.error(getRequestErrorMessage(error, `字段 ${jsonField.fieldName} 更新失败`));
+      }
+    },
+    [activeResourceId, jsonField, message, selectedResource, updateFieldMutation],
+  );
+
+  const handleReload = useCallback(async () => {
+    if (!activeResourceId || !selectedResource) {
+      return;
+    }
+
+    try {
+      await reloadConfigMutation.mutateAsync(activeResourceId);
+      message.success(`${selectedResource.display_name} 重载成功`);
+    } catch (error) {
+      message.error(getRequestErrorMessage(error, `${selectedResource.display_name} 重载失败`));
+    }
+  }, [activeResourceId, message, reloadConfigMutation, selectedResource]);
+
+  const columns = useMemo<ColumnsType<ConfigFieldRow>>(
+    () => [
+      {
+        title: "字段名",
+        dataIndex: "fieldName",
+        key: "fieldName",
+        width: 220,
+        render: (fieldName: string) => <Typography.Text code>{fieldName}</Typography.Text>,
+      },
+      {
+        title: "当前值",
+        dataIndex: "value",
+        key: "value",
+        width: 420,
+        render: (value: unknown) => renderConfigValue(value),
+      },
+      {
+        title: "说明",
+        dataIndex: "description",
+        key: "description",
+        width: 320,
+        render: (description?: string) =>
+          description ? (
+            <Typography.Paragraph
+              style={{ marginBottom: 0, whiteSpace: "pre-wrap" }}
+              ellipsis={{ rows: 2, expandable: true, symbol: "展开" }}
+            >
+              {description}
+            </Typography.Paragraph>
+          ) : (
+            <Typography.Text className="subtle-text">暂无说明</Typography.Text>
+          ),
+      },
+      {
+        title: "操作",
+        key: "actions",
+        width: 120,
+        render: (_, row) => (
+          <Button icon={<EditOutlined />} onClick={() => handleOpenEditor(row.fieldName, row.value)}>
+            编辑
+          </Button>
+        ),
+      },
+    ],
+    [handleOpenEditor],
+  );
+
+  return (
+    <Space orientation="vertical" size={16} style={{ display: "flex" }} className="config-page">
+      <div className="page-header">
+        <div className="page-header__main">
+          <Typography.Title level={2} className="page-title">
+            配置管理
+          </Typography.Title>
+          <p className="page-description">
+            查看并调整小鞠的运行配置，修改后记得重载生效
+          </p>
+        </div>
+      </div>
+
+      {resourcesQuery.isError ? (
+        <Alert
+          showIcon
+          type="warning"
+          title="配置资源加载失败"
+          description={
+            resourcesQuery.error instanceof Error
+              ? resourcesQuery.error.message
+              : "请稍后重试。"
+          }
+        />
+      ) : null}
+
+      <div
+        className={`config-page__layout${isResourceCollapsed ? " config-page__layout--collapsed" : ""}`}
+      >
+        <Card
+          className={`glass-card config-page__resource-card${isResourceCollapsed ? " config-page__resource-card--collapsed" : ""}`}
+          variant="borderless"
+          title={isResourceCollapsed ? "资源" : "配置资源"}
+          extra={
+            <Button
+              type="text"
+              size="small"
+              icon={isResourceCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+              onClick={() => setIsResourceCollapsed((value) => !value)}
+              aria-label={isResourceCollapsed ? "展开配置资源栏" : "收起配置资源栏"}
+            >
+              {isResourceCollapsed ? "展开" : "收起"}
+            </Button>
+          }
+          loading={resourcesQuery.isPending}
+          styles={{ body: { padding: 12 } }}
+        >
+          {!isResourceCollapsed && resources.length ? (
+            <Menu
+              mode="inline"
+              selectedKeys={activeResourceId ? [activeResourceId] : []}
+              items={resources.map((resource) => ({
+                key: resource.resource_id,
+                label: (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "center",
+                      minHeight: 44,
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    <Typography.Text strong>{resource.display_name}</Typography.Text>
+                    <Typography.Text
+                      type="secondary"
+                      style={{ fontSize: 12 }}
+                      ellipsis={{ tooltip: resource.config_source }}
+                    >
+                      {resource.config_source}
+                    </Typography.Text>
+                  </div>
+                ),
+              }))}
+              onClick={({ key }) => {
+                setSelectedResourceId(String(key));
+                setPrimitiveField(null);
+                setJsonField(null);
+              }}
+              style={{ borderInlineEnd: "none", background: "transparent" }}
+            />
+          ) : null}
+          {!isResourceCollapsed && !resources.length ? (
+            <Empty description="暂无配置资源" />
+          ) : null}
+        </Card>
+
+        <Space
+          className="config-page__detail"
+          orientation="vertical"
+          size={16}
+          style={{ display: "flex", minWidth: 0 }}
+        >
+          {!activeResourceId && !resourcesQuery.isPending ? (
+            <Card className="glass-card" variant="borderless">
+              <Empty description="请选择一个配置资源" />
+            </Card>
+          ) : null}
+
+          {detailQuery.isError ? (
+            <Alert
+              showIcon
+              type="error"
+              title="配置详情加载失败"
+              description={
+                detailQuery.error instanceof Error ? detailQuery.error.message : "请稍后重试。"
+              }
+            />
+          ) : null}
+
+          {activeResourceId && detailQuery.isPending && !selectedResource ? (
+            <Card className="glass-card" variant="borderless" loading />
+          ) : null}
+
+          {selectedResource ? (
+            <>
+              <Card
+                className="glass-card config-page__summary-card"
+                variant="borderless"
+                title={selectedResource.display_name}
+                extra={
+                  <Popconfirm
+                    title="确认重载这个配置资源？"
+                    description="重载会立即影响运行中的配置。"
+                    okText="确认重载"
+                    cancelText="取消"
+                    onConfirm={handleReload}
+                  >
+                    <Button
+                      icon={<ReloadOutlined />}
+                      loading={reloadConfigMutation.isPending}
+                    >
+                      重载配置
+                    </Button>
+                  </Popconfirm>
+                }
+              >
+                <Space orientation="vertical" size={8} style={{ display: "flex" }}>
+                  <div>
+                    <Typography.Text strong>资源 ID：</Typography.Text>
+                    <Typography.Text code>{selectedResource.resource_id}</Typography.Text>
+                  </div>
+                  <div>
+                    <Typography.Text strong>配置来源：</Typography.Text>
+                    <Typography.Text>{selectedResource.config_source}</Typography.Text>
+                  </div>
+                  {selectedResource.values.version !== undefined ? (
+                    <div>
+                      <Typography.Text strong>版本：</Typography.Text>
+                      <Typography.Text code>
+                        {formatMetaValue(selectedResource.values.version)}
+                      </Typography.Text>
+                    </div>
+                  ) : null}
+                  {selectedResource.values.last_updated !== undefined ? (
+                    <div>
+                      <Typography.Text strong>最后更新：</Typography.Text>
+                      <Typography.Text>
+                        {formatMetaValue(selectedResource.values.last_updated)}
+                      </Typography.Text>
+                    </div>
+                  ) : null}
+                  <Space wrap size={[8, 8]}>
+                    <Tag color="gold">字段数 {selectedResource.fields.length}</Tag>
+                  </Space>
+                </Space>
+              </Card>
+
+              <Card
+                className="glass-card"
+                variant="borderless"
+                title={`字段列表 (${fieldRows.length})`}
+              >
+                <Table<ConfigFieldRow>
+                  rowKey="fieldName"
+                  columns={columns}
+                  dataSource={fieldRows}
+                  pagination={false}
+                  scroll={{ x: 1080 }}
+                  locale={{ emptyText: "暂无字段数据" }}
+                />
+              </Card>
+            </>
+          ) : null}
+        </Space>
+      </div>
+
+      {primitiveField ? (
+        <PrimitiveFieldModal
+          field={primitiveField}
+          description={selectedResource?.field_descriptions?.[primitiveField.fieldName]}
+          confirmLoading={updateFieldMutation.isPending}
+          onCancel={() => setPrimitiveField(null)}
+          onSubmit={handleSubmitPrimitive}
+        />
+      ) : null}
+
+      {jsonField ? (
+        <JsonEditorModal
+          open
+          title={`编辑字段 - ${jsonField.fieldName}`}
+          value={jsonField.value}
+          description={selectedResource?.field_descriptions?.[jsonField.fieldName]}
+          onCancel={() => setJsonField(null)}
+          onOk={handleSubmitJson}
+          confirmLoading={updateFieldMutation.isPending}
+        />
+      ) : null}
+    </Space>
+  );
+}
+
+function renderConfigValue(value: unknown) {
+  if (typeof value === "string") {
+    return <Typography.Text>{value || ""}</Typography.Text>;
+  }
+
+  if (typeof value === "number") {
+    return <Typography.Text>{value}</Typography.Text>;
+  }
+
+  if (typeof value === "boolean") {
+    return <Tag color={value ? "green" : "default"}>{value ? "true" : "false"}</Tag>;
+  }
+
+  if (value === null) {
+    return <Tag>null</Tag>;
+  }
+
+  if (value === undefined) {
+    return <Typography.Text className="subtle-text">未配置</Typography.Text>;
+  }
+
+  const text = safeJsonStringify(value);
+
+  return (
+    <Tooltip title={<pre style={{ margin: 0, whiteSpace: "pre-wrap" }}>{text}</pre>}>
+      <Typography.Text
+        style={{
+          display: "inline-block",
+          maxWidth: "100%",
+          whiteSpace: "pre-wrap",
+          wordBreak: "break-word",
+        }}
+        ellipsis={{ tooltip: false }}
+      >
+        {text}
+      </Typography.Text>
+    </Tooltip>
+  );
+}
+
+function formatMetaValue(value: unknown): string {
+  if (typeof value === "number") {
+    // 10 位按秒、13 位按毫秒的 unix 时间戳转成可读时间，其余数字原样展示
+    if (value >= 1_000_000_000_000) {
+      return new Date(value).toLocaleString();
+    }
+    if (value >= 1_000_000_000 && value < 10_000_000_000) {
+      return new Date(value * 1000).toLocaleString();
+    }
+    return String(value);
+  }
+  if (typeof value === "string") {
+    return value;
+  }
+  return String(value ?? "");
+}
+
+function getPrimitiveMode(value: unknown): PrimitiveFieldState["mode"] {
+  if (typeof value === "number") {
+    return "number";
+  }
+
+  if (typeof value === "boolean") {
+    return "boolean";
+  }
+
+  if (value === null || value === undefined) {
+    return "null";
+  }
+
+  return "string";
+}
+
+function getPrimitiveFormValue(field: PrimitiveFieldState) {
+  if (field.mode === "boolean") {
+    return Boolean(field.value);
+  }
+
+  if (field.mode === "number") {
+    return typeof field.value === "number" ? field.value : undefined;
+  }
+
+  return typeof field.value === "string" ? field.value : "";
+}
+
+function normalizePrimitiveValue(mode: PrimitiveFieldState["mode"], value: unknown) {
+  if (mode === "boolean") {
+    return Boolean(value);
+  }
+
+  if (mode === "number") {
+    return typeof value === "number" ? value : Number(value);
+  }
+
+  return typeof value === "string" ? value : String(value ?? "");
+}
+
+function safeJsonStringify(value: unknown) {
+  try {
+    return JSON.stringify(value, null, 2) ?? String(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+type PrimitiveFieldModalProps = {
+  field: PrimitiveFieldState;
+  description?: string;
+  confirmLoading: boolean;
+  onCancel: () => void;
+  onSubmit: (value: unknown) => Promise<void>;
+};
+
+function PrimitiveFieldModal({
+  field,
+  description,
+  confirmLoading,
+  onCancel,
+  onSubmit,
+}: PrimitiveFieldModalProps) {
+  const [form] = Form.useForm<{ value: unknown }>();
+
+  useEffect(() => {
+    form.setFieldsValue({ value: getPrimitiveFormValue(field) });
+  }, [field, form]);
+
+  const handleOk = useCallback(async () => {
+    let values: { value: unknown };
+
+    try {
+      values = await form.validateFields();
+    } catch {
+      // 校验失败时 antd 已展示错误信息，直接中断提交
+      return;
+    }
+
+    await onSubmit(values.value);
+  }, [form, onSubmit]);
+
+  return (
+    <Modal
+      open
+      title={`编辑字段 - ${field.fieldName}`}
+      onCancel={onCancel}
+      onOk={handleOk}
+      confirmLoading={confirmLoading}
+      destroyOnHidden
+    >
+      <Form form={form} layout="vertical" initialValues={{ value: getPrimitiveFormValue(field) }}>
+        <Form.Item label="字段名">
+          <Input value={field.fieldName} disabled />
+        </Form.Item>
+        <Form.Item label="字段说明">
+          <Input value={description ?? "暂无说明"} disabled />
+        </Form.Item>
+        {field.mode === "string" ? (
+          <Form.Item name="value" label="字段值">
+            <Input.TextArea rows={4} allowClear placeholder="请输入字符串值，留空即清空该字段" />
+          </Form.Item>
+        ) : null}
+        {field.mode === "number" ? (
+          <Form.Item
+            name="value"
+            label="字段值"
+            rules={[{ required: true, message: "请输入字段值" }]}
+          >
+            <InputNumber style={{ width: "100%" }} placeholder="请输入数字值" />
+          </Form.Item>
+        ) : null}
+        {field.mode === "boolean" ? (
+          <Form.Item name="value" label="字段值" valuePropName="checked">
+            <Switch checkedChildren="启用" unCheckedChildren="关闭" />
+          </Form.Item>
+        ) : null}
+        {field.mode === "null" ? (
+          <Alert
+            type="info"
+            showIcon
+            title="当前字段值为 null"
+            description="这里按字符串方式编辑，保存后将以文本形式写入配置。"
+          />
+        ) : null}
+      </Form>
+    </Modal>
+  );
+}
