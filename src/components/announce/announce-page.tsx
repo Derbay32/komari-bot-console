@@ -21,6 +21,7 @@ import type { TableColumnsType } from "antd";
 import type { Dayjs } from "dayjs";
 import { useCallback, useMemo, useRef, useState } from "react";
 
+import { observePromise, withReportedErrors } from "@/lib/async";
 import { createRequestId } from "@/lib/http/audit";
 import { getRequestErrorMessage } from "@/lib/http/error";
 import { useGroupList, useSendMaintenanceAnnounce } from "@/lib/hooks/use-announce";
@@ -133,13 +134,13 @@ export function AnnouncePage() {
       group_ids: values.group_ids,
     };
 
-    modal.confirm({
+    const confirmation = modal.confirm({
       title: "确认发送维护通知",
       content: `将向 ${payload.group_ids.length} 个群发送维护通知，发送后不可撤回。`,
       okText: "确认发送",
       cancelText: "取消",
       okButtonProps: { danger: true },
-      onOk: async () => {
+      onOk: withReportedErrors(async () => {
         const requestId = requestIdRef.current ?? createRequestId("web-announce");
         requestIdRef.current = requestId;
 
@@ -148,12 +149,17 @@ export function AnnouncePage() {
           requestIdRef.current = null;
           form.resetFields();
           setLastResult(result);
-          message.success(`通知发送完成：成功 ${result.success_count} 个，失败 ${result.failed_count} 个`);
+          observePromise(
+            message.success(`通知发送完成：成功 ${result.success_count} 个，失败 ${result.failed_count} 个`),
+          );
         } catch (error) {
-          message.error(getRequestErrorMessage(error, "发送维护通知失败"));
+          observePromise(message.error(getRequestErrorMessage(error, "发送维护通知失败")));
         }
-      },
+      }),
     });
+    // This observes the user's confirmation result, not onOk's errors. Antd
+    // switches to silent mode here; withReportedErrors logs at the action itself.
+    observePromise(Promise.resolve(confirmation));
   }, [form, message, modal, sendMutation]);
 
   return (
@@ -308,7 +314,7 @@ export function AnnouncePage() {
             type="primary"
             icon={<SendOutlined />}
             loading={sendMutation.isPending}
-            onClick={handleSend}
+            onClick={() => observePromise(handleSend())}
           >
             发送通知
           </Button>

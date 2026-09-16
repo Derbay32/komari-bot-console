@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { observePromise } from "@/lib/async";
 import { apiFetch } from "@/lib/http/client";
 import type { components } from "@/types/komari-api";
 
@@ -96,7 +97,7 @@ export function usePutUserProfile() {
         },
       ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["user-profiles"] });
+      observePromise(queryClient.invalidateQueries({ queryKey: ["user-profiles"] }));
     },
   });
 }
@@ -116,7 +117,7 @@ export function useDeleteUserProfile() {
         { method: "DELETE" },
       ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["user-profiles"] });
+      observePromise(queryClient.invalidateQueries({ queryKey: ["user-profiles"] }));
     },
   });
 }

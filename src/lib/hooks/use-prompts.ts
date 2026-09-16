@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { observePromise } from "@/lib/async";
 import { buildAuditHeaders, createRequestId } from "@/lib/http/audit";
 import { apiFetch } from "@/lib/http/client";
 import type { components } from "@/types/komari-api";
@@ -54,8 +55,8 @@ export function useUpdatePromptField() {
         },
       ),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["prompt", "detail", variables.resourceId] });
-      queryClient.invalidateQueries({ queryKey: ["prompt", "resources"] });
+      observePromise(queryClient.invalidateQueries({ queryKey: ["prompt", "detail", variables.resourceId] }));
+      observePromise(queryClient.invalidateQueries({ queryKey: ["prompt", "resources"] }));
     },
   });
 }

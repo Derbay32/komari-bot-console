@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { observePromise } from "@/lib/async";
 import { apiFetch } from "@/lib/http/client";
 import type { components } from "@/types/komari-api";
 
@@ -48,7 +49,7 @@ export function useCreateHelp() {
         body: data,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["help", "list"] });
+      observePromise(queryClient.invalidateQueries({ queryKey: ["help", "list"] }));
     },
   });
 }
@@ -63,8 +64,8 @@ export function useUpdateHelp() {
         body: data,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["help", "list"] });
-      queryClient.invalidateQueries({ queryKey: ["help", "detail"] });
+      observePromise(queryClient.invalidateQueries({ queryKey: ["help", "list"] }));
+      observePromise(queryClient.invalidateQueries({ queryKey: ["help", "detail"] }));
     },
   });
 }
@@ -78,8 +79,8 @@ export function useDeleteHelp() {
         method: "DELETE",
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["help", "list"] });
-      queryClient.invalidateQueries({ queryKey: ["help", "detail"] });
+      observePromise(queryClient.invalidateQueries({ queryKey: ["help", "list"] }));
+      observePromise(queryClient.invalidateQueries({ queryKey: ["help", "detail"] }));
     },
   });
 }
@@ -103,7 +104,7 @@ export function useScanHelp() {
         method: "POST",
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["help", "list"] });
+      observePromise(queryClient.invalidateQueries({ queryKey: ["help", "list"] }));
     },
   });
 }

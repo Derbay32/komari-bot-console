@@ -14,6 +14,7 @@ import {
 } from "antd";
 import { useCallback, useState } from "react";
 
+import { observeCallback, observePromise } from "@/lib/async";
 import type { components } from "@/types/komari-api";
 import { getRequestErrorMessage } from "@/lib/http/error";
 import {
@@ -40,11 +41,13 @@ export function DeadLettersTab() {
           groupId: record.group_id,
           snapshotId: record.snapshot_id,
         });
-        message.success(
-          `已重新入队，恢复 ${result.restored_message_count} 条消息`,
+        observePromise(
+          message.success(
+            `已重新入队，恢复 ${result.restored_message_count} 条消息`,
+          ),
         );
       } catch (error) {
-        message.error(getRequestErrorMessage(error, "重新入队失败"));
+        observePromise(message.error(getRequestErrorMessage(error, "重新入队失败")));
       }
     },
     [message, requeueMutation],
@@ -143,7 +146,7 @@ export function DeadLettersTab() {
           </Button>
           <Button
             icon={<ReloadOutlined />}
-            onClick={() => listQuery.refetch()}
+            onClick={observeCallback(() => listQuery.refetch())}
             loading={listQuery.isRefetching}
           >
             刷新

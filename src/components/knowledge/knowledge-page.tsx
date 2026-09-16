@@ -26,6 +26,7 @@ import {
 } from "antd";
 import { useCallback, useEffect, useState } from "react";
 
+import { observeCallback, observePromise } from "@/lib/async";
 import type { components } from "@/types/komari-api";
 import { getRequestErrorMessage } from "@/lib/http/error";
 import {
@@ -106,18 +107,20 @@ export function KnowledgePage() {
     try {
       if (editingRecord) {
         await updateMutation.mutateAsync({ kid: editingRecord.id, data: values });
-        message.success("知识更新成功");
+        observePromise(message.success("知识更新成功"));
       } else {
         await createMutation.mutateAsync(values);
-        message.success("知识创建成功");
+        observePromise(message.success("知识创建成功"));
       }
       setEditModalOpen(false);
       setEditingRecord(null);
     } catch (error) {
-      message.error(
-        getRequestErrorMessage(
-          error,
-          editingRecord ? "知识更新失败" : "知识创建失败",
+      observePromise(
+        message.error(
+          getRequestErrorMessage(
+            error,
+            editingRecord ? "知识更新失败" : "知识创建失败",
+          ),
         ),
       );
     }
@@ -127,9 +130,9 @@ export function KnowledgePage() {
     async (kid: number) => {
       try {
         await deleteMutation.mutateAsync(kid);
-        message.success("知识删除成功");
+        observePromise(message.success("知识删除成功"));
       } catch (error) {
-        message.error(getRequestErrorMessage(error, "知识删除失败"));
+        observePromise(message.error(getRequestErrorMessage(error, "知识删除失败")));
       }
     },
     [deleteMutation, message],
@@ -137,14 +140,14 @@ export function KnowledgePage() {
 
   const handleSearch = useCallback(async () => {
     if (!searchQuery.trim()) {
-      message.warning("请输入搜索内容");
+      observePromise(message.warning("请输入搜索内容"));
       return;
     }
 
     try {
       await searchMutation.mutateAsync({ query: searchQuery, limit: searchLimit });
     } catch (error) {
-      message.error(getRequestErrorMessage(error, "知识搜索失败"));
+      observePromise(message.error(getRequestErrorMessage(error, "知识搜索失败")));
     }
   }, [message, searchLimit, searchMutation, searchQuery]);
 
@@ -315,7 +318,7 @@ export function KnowledgePage() {
               placeholder="输入搜索 query"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              onPressEnter={handleSearch}
+              onPressEnter={observeCallback(handleSearch)}
             />
             <InputNumber
               min={1}
@@ -328,7 +331,7 @@ export function KnowledgePage() {
               type="primary"
               icon={<SearchOutlined />}
               loading={searchMutation.isPending}
-              onClick={handleSearch}
+              onClick={observeCallback(handleSearch)}
             >
               搜索
             </Button>
@@ -425,7 +428,7 @@ function KnowledgeEditModal({
       open={open}
       title={record ? "编辑知识" : "新增知识"}
       onCancel={onCancel}
-      onOk={handleOk}
+      onOk={observeCallback(handleOk)}
       confirmLoading={confirmLoading}
       width={640}
     >

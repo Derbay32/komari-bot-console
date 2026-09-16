@@ -22,6 +22,7 @@ import {
 } from "antd";
 import { useCallback, useEffect, useState } from "react";
 
+import { observeCallback, observePromise } from "@/lib/async";
 import type { components } from "@/types/komari-api";
 import { getRequestErrorMessage } from "@/lib/http/error";
 import { formatDateTime } from "@/lib/format";
@@ -107,10 +108,10 @@ export function BansPage() {
           },
           auditReason: values.auditReason,
         });
-        message.success(actionLabelMap[result.action] ?? "操作成功");
+        observePromise(message.success(actionLabelMap[result.action] ?? "操作成功"));
         setCreateModalOpen(false);
       } catch (error) {
-        message.error(getRequestErrorMessage(error, "封禁操作失败"));
+        observePromise(message.error(getRequestErrorMessage(error, "封禁操作失败")));
       }
     },
     [createOrUpdateMutation, message],
@@ -126,11 +127,11 @@ export function BansPage() {
         scope: unbanTarget.scope,
         auditReason: unbanReason,
       });
-      message.success("封禁已解除");
+      observePromise(message.success("封禁已解除"));
       setUnbanTarget(null);
       setUnbanReason("");
     } catch (error) {
-      message.error(getRequestErrorMessage(error, "解除封禁失败"));
+      observePromise(message.error(getRequestErrorMessage(error, "解除封禁失败")));
     }
   }, [deleteMutation, message, unbanReason, unbanTarget]);
 
@@ -270,7 +271,7 @@ export function BansPage() {
           />
           <Button
             icon={<ReloadOutlined />}
-            onClick={() => listQuery.refetch()}
+            onClick={observeCallback(() => listQuery.refetch())}
             loading={listQuery.isRefetching}
           >
             刷新
@@ -317,7 +318,7 @@ export function BansPage() {
           setUnbanTarget(null);
           setUnbanReason("");
         }}
-        onOk={handleUnban}
+        onOk={observeCallback(handleUnban)}
         okText="确认解除"
         okButtonProps={{
           danger: true,
@@ -377,7 +378,7 @@ function BanCreateModal({
       open={open}
       title="新增 / 更新封禁"
       onCancel={onCancel}
-      onOk={handleOk}
+      onOk={observeCallback(handleOk)}
       confirmLoading={confirmLoading}
       width={560}
     >
