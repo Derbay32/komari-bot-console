@@ -1,0 +1,132 @@
+name: Publish GHCR release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ghcr-release-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  context:
+    name: Validate release target
+    if: github.event.release.prerelease == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      image: ${{ steps.release.outputs.image }}
+    steps:
+      - name: Check out release commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate stable tag and main ancestry
+        id: release
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo 'Release tag must use vMAJOR.MINOR.PATCH' >&2
+            exit 1
+          fi
+          VERSION="$(node -p 'require("./package.json").version')"
+          test "$RELEASE_TAG" = "v${VERSION}"
+          git merge-base --is-ancestor HEAD origin/main
+          {
+            echo "version=$VERSION"
+            echo "image=ghcr.io/${REPOSITORY,,}"
+          } >> "$GITHUB_OUTPUT"
+
+  quality:
+    name: Validate release
+    needs: context
+    uses: ./.github/workflows/release-quality.yml
+    permissions:
+      contents: read
+
+  publish:
+    name: Publish verified image and deployment package
+    needs: [context, quality]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      packages: write
+    env:
+      IMAGE: ${{ needs.context.outputs.image }}
+      VERSION: ${{ needs.context.outputs.version }}
+      REVISION: ${{ github.sha }}
+      RELEASE_TAG: ${{ github.event.release.tag_name }}
+    steps:
+      - name: Check out release commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Download verified release image
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: release-image-${{ github.sha }}
+      - name: Load verified release image
+        run: |
+          gzip --decompress --stdout release-image.tar.gz | docker load
+          test "$(docker inspect komari-bot-console:ci --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" = "$REVISION"
+          test "$(docker inspect komari-bot-console:ci --format '{{ index .Config.Labels "org.opencontainers.image.version" }}')" = "$VERSION"
+      - name: Log in to GHCR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push verified image tags
+        run: |
+          for TAG in "$VERSION" "sha-${REVISION:0:12}" "${VERSION%.*}" latest; do
+            docker tag komari-bot-console:ci "${IMAGE}:${TAG}"
+            docker push "${IMAGE}:${TAG}"
+          done
+      - name: Record registry digest
+        run: |
+          DIGEST="$(docker buildx imagetools inspect "${IMAGE}:${VERSION}" --format '{{json .Manifest}}' | jq -r '.digest')"
+          [[ "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          jq --null-input \
+            --arg image "$IMAGE" --arg version "$VERSION" \
+            --arg revision "$REVISION" --arg digest "$DIGEST" \
+            '{image: $image, version: $version, revision: $revision, digest: $digest, platform: "linux/amd64"}' \
+            > release-image.json
+          {
+            echo "### GHCR 发布结果"
+            echo "- 镜像：\`${IMAGE}:${VERSION}\`"
+            echo "- 摘要：\`${DIGEST}\`"
+            echo "- 提交：\`${REVISION}\`"
+            echo "- 平台：\`linux/amd64\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Package deployment files
+        run: |
+          mkdir release-deploy
+          cp docker-compose.yaml .env.example release-deploy/
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          path = Path('release-deploy/docker-compose.yaml')
+          content = path.read_text()
+          source = 'image: komari-bot-console:latest'
+          if content.count(source) != 1:
+              raise SystemExit('Expected exactly one deployment image reference')
+          image = f"image: {os.environ['IMAGE']}:{os.environ['VERSION']}"
+          path.write_text(content.replace(source, image))
+          PY
+          tar -czf "komari-bot-console-${RELEASE_TAG}.tar.gz" \
+            -C release-deploy docker-compose.yaml .env.example
+      - name: Attach release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release upload "$RELEASE_TAG" \
+            "komari-bot-console-${RELEASE_TAG}.tar.gz" release-image.json --clobber

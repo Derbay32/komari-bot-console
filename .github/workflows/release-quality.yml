@@ -3,13 +3,16 @@ name: Release quality
 on:
   pull_request:
     branches: [main]
+  push:
+    branches: [main]
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-quality-${{ github.event.pull_request.number || github.ref }}
+  group: release-quality-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -19,11 +22,11 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Check out code
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 22
           cache: npm
@@ -35,3 +38,75 @@ jobs:
         run: npx next typegen && npm run typecheck
       - name: Build production application
         run: npm run build
+
+  container:
+    name: Release container smoke test
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Build release image
+        env:
+          REPOSITORY: ${{ github.repository }}
+          REVISION: ${{ github.sha }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          VERSION="$(node -p 'require("./package.json").version')"
+          docker build \
+            --tag komari-bot-console:ci \
+            --label "org.opencontainers.image.source=${SERVER_URL}/${REPOSITORY}" \
+            --label "org.opencontainers.image.revision=${REVISION}" \
+            --label "org.opencontainers.image.version=${VERSION}" \
+            .
+      - name: Verify packaged dependency versions
+        run: |
+          docker run --rm \
+            --env "EXPECTED_NEXT=$(node -p 'require("./package-lock.json").packages["node_modules/next"].version')" \
+            --env "EXPECTED_SHARP=$(node -p 'require("./package-lock.json").packages["node_modules/sharp"].version')" \
+            --entrypoint node komari-bot-console:ci -e '
+              const assert = require("node:assert/strict");
+              const sharp = require("sharp");
+              assert.equal(require("next/package.json").version, process.env.EXPECTED_NEXT);
+              assert.equal(sharp.versions.sharp, process.env.EXPECTED_SHARP);
+              sharp({ create: { width: 1, height: 1, channels: 3, background: "white" } })
+                .png().toBuffer().then(() => console.log("Packaged versions and sharp native runtime verified"))
+                .catch(error => { console.error(error); process.exitCode = 1; });
+            '
+      - name: Verify container HTTP responses
+        run: |
+          docker run --detach --name release-smoke \
+            --publish 127.0.0.1:3000:3000 \
+            --env HOSTNAME=0.0.0.0 komari-bot-console:ci
+          trap 'docker logs release-smoke; docker rm --force release-smoke' EXIT
+          curl --fail --silent --show-error --retry 20 --retry-all-errors --retry-delay 1 \
+            --connect-timeout 1 --max-time 5 \
+            http://127.0.0.1:3000/ --output /tmp/release-home.html
+          grep -q '<html' /tmp/release-home.html
+          curl --fail --silent --show-error http://127.0.0.1:3000/icon.svg --output /dev/null
+          ASSET="$(python3 - <<'PY'
+          import re
+          from pathlib import Path
+          html = Path('/tmp/release-home.html').read_text()
+          match = re.search(r'/_next/static/[^"\s]+\.js', html)
+          if not match:
+              raise SystemExit('No JavaScript asset found in homepage')
+          print(match.group(0))
+          PY
+          )"
+          curl --fail --silent --show-error "http://127.0.0.1:3000${ASSET}" --output /dev/null
+      - name: Export verified release image
+        if: github.event_name == 'release'
+        run: docker save komari-bot-console:ci | gzip > release-image.tar.gz
+      - name: Upload verified release image
+        if: github.event_name == 'release'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: release-image-${{ github.sha }}
+          path: release-image.tar.gz
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
