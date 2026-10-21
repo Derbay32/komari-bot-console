@@ -82,7 +82,8 @@ jobs:
             --publish 127.0.0.1:3000:3000 \
             --env HOSTNAME=0.0.0.0 komari-bot-console:ci
           trap 'docker logs release-smoke; docker rm --force release-smoke' EXIT
-          curl --fail --silent --show-error --retry 20 --retry-connrefused --retry-delay 1 \
+          curl --fail --silent --show-error --retry 20 --retry-all-errors --retry-delay 1 \
+            --connect-timeout 1 --max-time 5 \
             http://127.0.0.1:3000/ --output /tmp/release-home.html
           grep -q '<html' /tmp/release-home.html
           curl --fail --silent --show-error http://127.0.0.1:3000/icon.svg --output /dev/null
