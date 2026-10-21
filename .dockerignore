@@ -28,3 +28,6 @@ openapi
 docs
 tsconfig.tsbuildinfo
 secret.json
+
+.agents/worktrees
+.pi
