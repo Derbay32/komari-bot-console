@@ -11,7 +11,6 @@ import {
   SettingOutlined,
   StopOutlined,
   SunOutlined,
-  TagOutlined,
 } from "@ant-design/icons";
 import { Button, Drawer, Grid, Layout, Menu, Segmented, Typography } from "antd";
 import Link from "next/link";
@@ -29,7 +28,6 @@ const routeMap: Record<string, string> = {
   "/": "overview",
   "/knowledge": "knowledge",
   "/help": "help",
-  "/memory": "memory",
   "/announce": "announce",
   "/bans": "bans",
   "/prompt/main": "prompt-main",
@@ -40,7 +38,6 @@ const titleMap: Record<string, string> = {
   "/": "总览",
   "/knowledge": "知识库",
   "/help": "帮助文档",
-  "/memory": "记忆中心",
   "/announce": "公告通知",
   "/bans": "用户封禁",
   "/prompt/main": "主提示词",
@@ -70,11 +67,6 @@ const menuItems: ItemType[] = [
     key: "help",
     icon: <HighlightOutlined />,
     label: <Link href={HELP_ROUTE}>帮助文档</Link>,
-  },
-  {
-    key: "memory",
-    icon: <TagOutlined />,
-    label: <Link href="/memory">记忆中心</Link>,
   },
   {
     key: "announce",
