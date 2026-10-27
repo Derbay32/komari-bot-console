@@ -452,16 +452,6 @@ html.dark .module-card:hover {
   color: #943a4d;
 }
 
-.stat-card__icon--mauve {
-  background: rgba(176, 107, 122, 0.14);
-  color: #b06b7a;
-}
-
-.stat-card__icon--gold {
-  background: rgba(227, 169, 60, 0.16);
-  color: #c28f2b;
-}
-
 .stat-card__icon--green {
   background: rgba(91, 158, 90, 0.14);
   color: #5b9e5a;
@@ -470,16 +460,6 @@ html.dark .module-card:hover {
 html.dark .stat-card__icon--rose {
   background: rgba(199, 107, 125, 0.18);
   color: #c76b7d;
-}
-
-html.dark .stat-card__icon--mauve {
-  background: rgba(201, 138, 151, 0.16);
-  color: #c98a97;
-}
-
-html.dark .stat-card__icon--gold {
-  background: rgba(232, 180, 80, 0.16);
-  color: #e8b450;
 }
 
 html.dark .stat-card__icon--green {
@@ -577,27 +557,14 @@ html.dark .stat-card__icon--green {
   content: "";
 }
 
-.memory-page .ant-tabs-nav::before {
-  border-bottom-color: var(--border-soft) !important;
-}
-
-.memory-page .ant-tabs-ink-bar {
-  height: 3px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--brand) 0%, var(--accent-gold) 100%);
-}
-
-.memory-page .ant-menu .ant-menu-item,
 .config-page .ant-menu .ant-menu-item {
   position: relative;
 }
 
-.memory-page .ant-menu .ant-menu-item-selected,
 .config-page .ant-menu .ant-menu-item-selected {
   background: rgba(148, 58, 77, 0.1);
 }
 
-.memory-page .ant-menu .ant-menu-item-selected::before,
 .config-page .ant-menu .ant-menu-item-selected::before {
   position: absolute;
   top: 8px;
@@ -609,7 +576,6 @@ html.dark .stat-card__icon--green {
   content: "";
 }
 
-html.dark .memory-page .ant-menu .ant-menu-item-selected,
 html.dark .config-page .ant-menu .ant-menu-item-selected {
   background: rgba(199, 107, 125, 0.16);
 }

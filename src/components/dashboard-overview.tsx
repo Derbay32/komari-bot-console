@@ -12,12 +12,7 @@ import {
   Tag,
   Typography,
 } from "antd";
-import {
-  BookOutlined,
-  CommentOutlined,
-  FileTextOutlined,
-  UserOutlined,
-} from "@ant-design/icons";
+import { BookOutlined, FileTextOutlined } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import type { Route } from "next";
@@ -27,9 +22,7 @@ import { D20Icon } from "@/components/brand-logo";
 import { apiFetch } from "@/lib/http/client";
 import type { components } from "@/types/komari-api";
 
-type ConversationListResponse = components["schemas"]["ConversationListResponse"];
 type KnowledgeListResponse = components["schemas"]["KnowledgeListResponse"];
-type MemoryEntityListResponse = components["schemas"]["MemoryEntityListResponse"];
 type AgentRunListResponse = components["schemas"]["AgentRunListResponse"];
 
 function runStatusColor(status: string): string {
@@ -65,14 +58,8 @@ export function DashboardOverview() {
   const overviewQuery = useQuery({
     queryKey: ["dashboard", "overview"],
     queryFn: async () => {
-      const [knowledge, conversations, profiles, llm_logs] = await Promise.all([
+      const [knowledge, llm_logs] = await Promise.all([
         apiFetch<KnowledgeListResponse>("/api/komari-knowledge/v1/knowledge", {
-          params: { limit: 1, offset: 0 },
-        }),
-        apiFetch<ConversationListResponse>("/api/komari-memory/v1/conversations", {
-          params: { limit: 1, offset: 0 },
-        }),
-        apiFetch<MemoryEntityListResponse>("/api/komari-memory/v1/user-profiles", {
           params: { limit: 1, offset: 0 },
         }),
         apiFetch<AgentRunListResponse>("/api/agent-run-logs/v1/runs", {
@@ -82,8 +69,6 @@ export function DashboardOverview() {
 
       return {
         knowledgeTotal: knowledge.total,
-        conversationTotal: conversations.total,
-        profileTotal: profiles.total,
         latestLogs: llm_logs.items,
       };
     },
@@ -116,11 +101,9 @@ export function DashboardOverview() {
 
       <Row gutter={[16, 16]} className="status-grid">
         {buildOverviewCardItems({
-          conversationTotal: overviewQuery.data?.conversationTotal ?? 0,
           knowledgeTotal: overviewQuery.data?.knowledgeTotal ?? 0,
           latestLogCount: overviewQuery.data?.latestLogs.length ?? 0,
           loading: overviewQuery.isPending,
-          profileTotal: overviewQuery.data?.profileTotal ?? 0,
         }).map((item) => (
           <Col xs={24} sm={12} xl={6} key={item.title}>
             <Link href={item.href}>
@@ -173,11 +156,9 @@ export function DashboardOverview() {
 }
 
 function buildOverviewCardItems(params: {
-  conversationTotal: number;
   knowledgeTotal: number;
   latestLogCount: number;
   loading: boolean;
-  profileTotal: number;
 }): OverviewCardItem[] {
   return [
     {
@@ -187,22 +168,6 @@ function buildOverviewCardItems(params: {
       href: "/knowledge" as Route,
       icon: <BookOutlined />,
       iconClassName: "stat-card__icon--rose",
-    },
-    {
-      title: "对话数量",
-      value: params.conversationTotal,
-      loading: params.loading,
-      href: "/memory" as Route,
-      icon: <CommentOutlined />,
-      iconClassName: "stat-card__icon--mauve",
-    },
-    {
-      title: "用户画像",
-      value: params.profileTotal,
-      loading: params.loading,
-      href: "/memory" as Route,
-      icon: <UserOutlined />,
-      iconClassName: "stat-card__icon--gold",
     },
     {
       title: "最近日志",
