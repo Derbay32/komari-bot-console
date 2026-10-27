@@ -4,7 +4,6 @@ import {
   BellOutlined,
   BookOutlined,
   DeploymentUnitOutlined,
-  FileTextOutlined,
   HighlightOutlined,
   MenuOutlined,
   MoonOutlined,
@@ -12,7 +11,6 @@ import {
   SettingOutlined,
   StopOutlined,
   SunOutlined,
-  TagOutlined,
 } from "@ant-design/icons";
 import { Button, Drawer, Grid, Layout, Menu, Segmented, Typography } from "antd";
 import Link from "next/link";
@@ -30,35 +28,27 @@ const routeMap: Record<string, string> = {
   "/": "overview",
   "/knowledge": "knowledge",
   "/help": "help",
-  "/memory": "memory",
   "/announce": "announce",
   "/bans": "bans",
-  "/prompt/scenes": "prompt-scenes",
   "/prompt/main": "prompt-main",
   "/config": "config",
-  "/llm_logs": "logs",
 };
 
 const titleMap: Record<string, string> = {
   "/": "总览",
   "/knowledge": "知识库",
   "/help": "帮助文档",
-  "/memory": "记忆中心",
   "/announce": "公告通知",
   "/bans": "用户封禁",
-  "/prompt/scenes": "决策场景",
   "/prompt/main": "主提示词",
   "/config": "配置管理",
-  "/llm_logs": "运行日志",
 };
 
 const CONFIG_ROUTE = "/config" as Route;
 const ANNOUNCE_ROUTE = "/announce" as Route;
 const BANS_ROUTE = "/bans" as Route;
-const SCENES_ROUTE = "/prompt/scenes" as Route;
 const PROMPT_MAIN_ROUTE = "/prompt/main" as Route;
 const HELP_ROUTE = "/help" as Route;
-const LOGS_ROUTE = "/llm_logs" as Route;
 
 const emptySubscribe = () => () => undefined;
 
@@ -79,11 +69,6 @@ const menuItems: ItemType[] = [
     label: <Link href={HELP_ROUTE}>帮助文档</Link>,
   },
   {
-    key: "memory",
-    icon: <TagOutlined />,
-    label: <Link href="/memory">记忆中心</Link>,
-  },
-  {
     key: "announce",
     icon: <BellOutlined />,
     label: <Link href={ANNOUNCE_ROUTE}>公告通知</Link>,
@@ -98,7 +83,6 @@ const menuItems: ItemType[] = [
     icon: <DeploymentUnitOutlined />,
     label: "提示词管理",
     children: [
-      { key: "prompt-scenes", label: <Link href={SCENES_ROUTE}>决策场景</Link> },
       { key: "prompt-main", label: <Link href={PROMPT_MAIN_ROUTE}>主提示词</Link> },
     ],
   },
@@ -106,11 +90,6 @@ const menuItems: ItemType[] = [
     key: "config",
     icon: <SettingOutlined />,
     label: <Link href={CONFIG_ROUTE}>配置管理</Link>,
-  },
-  {
-    key: "logs",
-    icon: <FileTextOutlined />,
-    label: <Link href={LOGS_ROUTE}>运行日志</Link>,
   },
 ];
 
