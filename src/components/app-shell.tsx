@@ -4,7 +4,6 @@ import {
   BellOutlined,
   BookOutlined,
   DeploymentUnitOutlined,
-  FileTextOutlined,
   HighlightOutlined,
   MenuOutlined,
   MoonOutlined,
@@ -36,7 +35,6 @@ const routeMap: Record<string, string> = {
   "/prompt/scenes": "prompt-scenes",
   "/prompt/main": "prompt-main",
   "/config": "config",
-  "/llm_logs": "logs",
 };
 
 const titleMap: Record<string, string> = {
@@ -49,7 +47,6 @@ const titleMap: Record<string, string> = {
   "/prompt/scenes": "决策场景",
   "/prompt/main": "主提示词",
   "/config": "配置管理",
-  "/llm_logs": "运行日志",
 };
 
 const CONFIG_ROUTE = "/config" as Route;
@@ -58,7 +55,6 @@ const BANS_ROUTE = "/bans" as Route;
 const SCENES_ROUTE = "/prompt/scenes" as Route;
 const PROMPT_MAIN_ROUTE = "/prompt/main" as Route;
 const HELP_ROUTE = "/help" as Route;
-const LOGS_ROUTE = "/llm_logs" as Route;
 
 const emptySubscribe = () => () => undefined;
 
@@ -106,11 +102,6 @@ const menuItems: ItemType[] = [
     key: "config",
     icon: <SettingOutlined />,
     label: <Link href={CONFIG_ROUTE}>配置管理</Link>,
-  },
-  {
-    key: "logs",
-    icon: <FileTextOutlined />,
-    label: <Link href={LOGS_ROUTE}>运行日志</Link>,
   },
 ];
 
