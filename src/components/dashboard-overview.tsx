@@ -1,23 +1,7 @@
 "use client";
 
-import {
-  Alert,
-  Card,
-  Col,
-  Empty,
-  Row,
-  Skeleton,
-  Space,
-  Statistic,
-  Tag,
-  Typography,
-} from "antd";
-import {
-  BookOutlined,
-  CommentOutlined,
-  FileTextOutlined,
-  UserOutlined,
-} from "@ant-design/icons";
+import { Alert, Card, Col, Row, Space, Statistic, Typography } from "antd";
+import { BookOutlined, CommentOutlined, UserOutlined } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import type { Route } from "next";
@@ -30,20 +14,6 @@ import type { components } from "@/types/komari-api";
 type ConversationListResponse = components["schemas"]["ConversationListResponse"];
 type KnowledgeListResponse = components["schemas"]["KnowledgeListResponse"];
 type MemoryEntityListResponse = components["schemas"]["MemoryEntityListResponse"];
-type AgentRunListResponse = components["schemas"]["AgentRunListResponse"];
-
-function runStatusColor(status: string): string {
-  switch (status) {
-    case "success":
-      return "success";
-    case "error":
-      return "error";
-    case "cancelled":
-      return "default";
-    default:
-      return "processing";
-  }
-}
 
 type OverviewCardItem = {
   href: Route;
@@ -65,7 +35,7 @@ export function DashboardOverview() {
   const overviewQuery = useQuery({
     queryKey: ["dashboard", "overview"],
     queryFn: async () => {
-      const [knowledge, conversations, profiles, llm_logs] = await Promise.all([
+      const [knowledge, conversations, profiles] = await Promise.all([
         apiFetch<KnowledgeListResponse>("/api/komari-knowledge/v1/knowledge", {
           params: { limit: 1, offset: 0 },
         }),
@@ -75,16 +45,12 @@ export function DashboardOverview() {
         apiFetch<MemoryEntityListResponse>("/api/komari-memory/v1/user-profiles", {
           params: { limit: 1, offset: 0 },
         }),
-        apiFetch<AgentRunListResponse>("/api/agent-run-logs/v1/runs", {
-          params: { limit: 5, offset: 0 },
-        }),
       ]);
 
       return {
         knowledgeTotal: knowledge.total,
         conversationTotal: conversations.total,
         profileTotal: profiles.total,
-        latestLogs: llm_logs.items,
       };
     },
   });
@@ -118,7 +84,6 @@ export function DashboardOverview() {
         {buildOverviewCardItems({
           conversationTotal: overviewQuery.data?.conversationTotal ?? 0,
           knowledgeTotal: overviewQuery.data?.knowledgeTotal ?? 0,
-          latestLogCount: overviewQuery.data?.latestLogs.length ?? 0,
           loading: overviewQuery.isPending,
           profileTotal: overviewQuery.data?.profileTotal ?? 0,
         }).map((item) => (
@@ -137,37 +102,6 @@ export function DashboardOverview() {
           </Col>
         ))}
       </Row>
-
-      <Card className="glass-card" title="最近运行日志" variant="borderless">
-        {overviewQuery.isPending ? (
-          <Skeleton active paragraph={{ rows: 4 }} />
-        ) : overviewQuery.data?.latestLogs.length ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {overviewQuery.data.latestLogs.map((item) => (
-              <div
-                key={item.run_id}
-                className="log-item dashboard-log-card"
-              >
-                <Tag color={runStatusColor(item.status)}>{item.status}</Tag>
-                <div className="log-item__meta">
-                  <Typography.Text strong>
-                    {item.run_type} · {item.task_kind}
-                  </Typography.Text>
-                  <div className="log-item__line">
-                    {item.started_at} · 来源 {item.origin} · {item.round_count} 轮 ·{" "}
-                    {item.tool_count} 次工具调用
-                    {typeof item.duration_ms === "number"
-                      ? ` · ${Math.round(item.duration_ms)}ms`
-                      : ""}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <Empty description="还、还没有日志数据……" />
-        )}
-      </Card>
     </Space>
   );
 }
@@ -175,7 +109,6 @@ export function DashboardOverview() {
 function buildOverviewCardItems(params: {
   conversationTotal: number;
   knowledgeTotal: number;
-  latestLogCount: number;
   loading: boolean;
   profileTotal: number;
 }): OverviewCardItem[] {
@@ -203,14 +136,6 @@ function buildOverviewCardItems(params: {
       href: "/memory" as Route,
       icon: <UserOutlined />,
       iconClassName: "stat-card__icon--gold",
-    },
-    {
-      title: "最近日志",
-      value: params.latestLogCount,
-      loading: params.loading,
-      href: "/llm_logs" as Route,
-      icon: <FileTextOutlined />,
-      iconClassName: "stat-card__icon--green",
     },
   ];
 }

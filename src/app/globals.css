@@ -462,11 +462,6 @@ html.dark .module-card:hover {
   color: #c28f2b;
 }
 
-.stat-card__icon--green {
-  background: rgba(91, 158, 90, 0.14);
-  color: #5b9e5a;
-}
-
 html.dark .stat-card__icon--rose {
   background: rgba(199, 107, 125, 0.18);
   color: #c76b7d;
@@ -480,35 +475,6 @@ html.dark .stat-card__icon--mauve {
 html.dark .stat-card__icon--gold {
   background: rgba(232, 180, 80, 0.16);
   color: #e8b450;
-}
-
-html.dark .stat-card__icon--green {
-  background: rgba(127, 190, 126, 0.16);
-  color: #7fbe7e;
-}
-
-.dashboard-log-card {
-  padding: 12px 14px;
-  border: 1px solid var(--border-soft);
-  border-radius: 12px;
-  background: var(--module-card-bg);
-}
-
-.log-item {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  width: 100%;
-}
-
-.log-item__meta {
-  flex: 1;
-  min-width: 0;
-}
-
-.log-item__line {
-  color: var(--text-subtle);
-  font-size: 13px;
 }
 
 .console-nav-drawer-root .ant-drawer-content,
@@ -631,11 +597,6 @@ html.dark .config-page .ant-menu .ant-menu-item-selected {
   content: "";
 }
 
-.logs-page,
-.logs-page__filters,
-.logs-page__table-card,
-.logs-page__table-card .ant-card-body,
-.logs-page__table-card .ant-table-wrapper,
 .knowledge-page,
 .knowledge-page__toolbar,
 .knowledge-page__toolbar-group,
@@ -643,11 +604,6 @@ html.dark .config-page .ant-menu .ant-menu-item-selected {
 .knowledge-page__table-card .ant-card-body,
 .knowledge-page__table-card .ant-table-wrapper {
   min-width: 0;
-}
-
-.logs-page__filters {
-  display: flex;
-  width: 100%;
 }
 
 .knowledge-page__toolbar {
@@ -668,16 +624,6 @@ html.dark .config-page .ant-menu .ant-menu-item-selected {
   min-width: 200px;
 }
 
-.logs-page__filter-control {
-  min-width: 120px;
-}
-
-.logs-page__filter-control--date {
-  min-width: 160px;
-}
-
-.logs-page__filters-card .ant-card-body,
-.logs-page__table-card .ant-card-body,
 .knowledge-page__filters-card .ant-card-body,
 .knowledge-page__table-card .ant-card-body {
   padding: 20px;
@@ -801,11 +747,6 @@ html.dark .config-page .ant-menu .ant-menu-item-selected {
     display: none;
   }
 
-  .logs-page__filters {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
   .knowledge-page__toolbar,
   .knowledge-page__toolbar-group,
   .knowledge-page__toolbar-group--filters {
@@ -820,20 +761,11 @@ html.dark .config-page .ant-menu .ant-menu-item-selected {
     min-width: 0;
   }
 
-  .logs-page__filter-control,
-  .logs-page__filter-control--date {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .logs-page__filters-card .ant-card-body,
-  .logs-page__table-card .ant-card-body,
   .knowledge-page__filters-card .ant-card-body,
   .knowledge-page__table-card .ant-card-body {
     padding: 14px;
   }
 
-  .logs-page__table-card .ant-table-pagination,
   .knowledge-page__table-card .ant-table-pagination {
     margin-bottom: 0;
   }
