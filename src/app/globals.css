@@ -506,23 +506,6 @@ html.dark .stat-card__icon--rose {
   border-bottom: 1px solid var(--border-soft);
 }
 
-.detail-section-title {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  margin: 0 0 8px;
-  font-weight: 600;
-}
-
-.detail-section-title::before {
-  flex: none;
-  width: 4px;
-  height: 14px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, var(--brand) 0%, var(--accent-gold) 100%);
-  content: "";
-}
-
 .config-page .ant-menu .ant-menu-item {
   position: relative;
 }
