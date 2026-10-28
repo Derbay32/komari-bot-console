@@ -593,21 +593,29 @@ describe("knowledge category and keyword behavior", () => {
     }
   });
 
-  it("exposes the tested rule through the production keyword form item", async () => {
-    const requiredRule = knowledge.knowledgeKeywordsRules.find(
-      (rule) => rule.required === true,
-    );
-    const validatorRule = knowledge.knowledgeKeywordsRules.find(
-      (rule) => typeof rule.validator === "function",
-    );
-    assert.equal(requiredRule?.message, "请至少填写一个关键词");
-    assert.ok(validatorRule);
-    await assert.doesNotReject(
-      validatorRule.validator({}, ["魔法"], () => {}),
-    );
-    await assert.rejects(validatorRule.validator({}, ["  "], () => {}), {
-      message: "请至少填写一个关键词",
-    });
+  it("exposes the single tested rule through the production keyword form item", async () => {
+    assert.equal(knowledge.knowledgeKeywordsRules.length, 1);
+    const [keywordRule] = knowledge.knowledgeKeywordsRules;
+    assert.equal(keywordRule.required, true);
+    assert.equal(keywordRule.message, "请至少填写一个关键词");
+    assert.equal(typeof keywordRule.validator, "function");
+
+    for (const keywords of [
+      ["魔法"],
+      ["  魔法  "],
+      ["", "魔法"],
+      [" ", "\t", "设定"],
+    ]) {
+      await assert.doesNotReject(
+        keywordRule.validator({}, keywords, () => {}),
+      );
+    }
+
+    for (const keywords of [undefined, [], [""], ["   "]]) {
+      await assert.rejects(keywordRule.validator({}, keywords, () => {}), {
+        message: "请至少填写一个关键词",
+      });
+    }
 
     const source = readFileSync(
       new URL(

@@ -46,6 +46,9 @@ export function validateKnowledgeKeywords(value: unknown): Promise<void> {
 }
 
 export const knowledgeKeywordsRules: FormRule[] = [
-  { required: true, message: knowledgeKeywordsRequiredMessage },
-  { validator: (_rule, value) => validateKnowledgeKeywords(value) },
+  {
+    required: true,
+    message: knowledgeKeywordsRequiredMessage,
+    validator: (_rule, value) => validateKnowledgeKeywords(value),
+  },
 ];
