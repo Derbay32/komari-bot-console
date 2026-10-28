@@ -27,8 +27,15 @@ import {
 import { useCallback, useEffect, useState } from "react";
 
 import { observeCallback, observePromise } from "@/lib/async";
-import type { components } from "@/types/komari-api";
 import { getRequestErrorMessage } from "@/lib/http/error";
+import {
+  knowledgeCategoryColorMap,
+  knowledgeCategoryOptions,
+  knowledgeCustomCategoryLabel,
+  knowledgeKeywordsRules,
+  type KnowledgeCategory,
+} from "@/lib/knowledge";
+import type { components } from "@/types/komari-api";
 import {
   useCreateKnowledge,
   useDeleteKnowledge,
@@ -39,23 +46,6 @@ import {
 
 type KnowledgeEntry = components["schemas"]["KnowledgeEntry"];
 type KnowledgeCreateRequest = components["schemas"]["KnowledgeCreateRequest"];
-type KnowledgeCategory = "general" | "character" | "setting" | "plot" | "other";
-
-const categoryOptions: { value: KnowledgeCategory; label: string }[] = [
-  { value: "general", label: "通用" },
-  { value: "character", label: "角色" },
-  { value: "setting", label: "设定" },
-  { value: "plot", label: "剧情" },
-  { value: "other", label: "其他" },
-];
-
-const categoryColorMap: Record<KnowledgeCategory, string> = {
-  general: "volcano",
-  character: "magenta",
-  setting: "green",
-  plot: "gold",
-  other: "default",
-};
 
 export function KnowledgePage() {
   const { message } = App.useApp();
@@ -162,7 +152,9 @@ export function KnowledgePage() {
       dataIndex: "category",
       width: 100,
       render: (cat: KnowledgeCategory) => (
-        <Tag color={categoryColorMap[cat]}>{categoryOptions.find((o) => o.value === cat)?.label ?? cat}</Tag>
+        <Tag color={knowledgeCategoryColorMap[cat]}>
+          {knowledgeCategoryOptions.find((o) => o.value === cat)?.label ?? cat}
+        </Tag>
       ),
     },
     {
@@ -262,7 +254,7 @@ export function KnowledgePage() {
                 setPage(1);
                 setFilters((f) => ({ ...f, category: v }));
               }}
-              options={categoryOptions}
+              options={knowledgeCategoryOptions}
               style={{ width: isMobile ? "100%" : 120 }}
             />
           </Space>
@@ -350,8 +342,10 @@ export function KnowledgePage() {
                       style={{ display: "flex" }}
                     >
                       <Space wrap>
-                        <Tag color={categoryColorMap[item.category as KnowledgeCategory]}>
-                          {item.category}
+                        <Tag color={knowledgeCategoryColorMap[item.category]}>
+                          {item.category === "custom"
+                            ? knowledgeCustomCategoryLabel
+                            : item.category}
                         </Tag>
                         <Tag>相似度 {item.similarity.toFixed(4)}</Tag>
                         <Tag color={item.source === "vector" ? "green" : "volcano"}>
@@ -440,7 +434,7 @@ function KnowledgeEditModal({
         >
           <Input.TextArea rows={4} />
         </Form.Item>
-        <Form.Item name="keywords" label="关键词">
+        <Form.Item name="keywords" label="关键词" rules={knowledgeKeywordsRules}>
           <Select
             mode="tags"
             placeholder="输入关键词后回车"
@@ -452,7 +446,7 @@ function KnowledgeEditModal({
           label="分类"
           rules={[{ required: true, message: "请选择分类" }]}
         >
-          <Select options={categoryOptions} />
+          <Select options={knowledgeCategoryOptions} />
         </Form.Item>
         <Form.Item name="notes" label="备注">
           <Input.TextArea rows={2} />

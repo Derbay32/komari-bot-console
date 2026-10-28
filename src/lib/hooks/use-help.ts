@@ -25,7 +25,7 @@ export function useHelpList(params: HelpListParams) {
   return useQuery({
     queryKey: ["help", "list", params],
     queryFn: () =>
-      apiFetch<HelpListResponse>("/api/komari-help/v1/help", {
+      apiFetch<HelpListResponse>("/api/v2/komari-help/help", {
         params: params as Record<string, string | number | null>,
       }),
   });
@@ -34,7 +34,7 @@ export function useHelpList(params: HelpListParams) {
 export function useHelp(hid: number | undefined) {
   return useQuery({
     queryKey: ["help", "detail", hid],
-    queryFn: () => apiFetch<HelpEntry>(`/api/komari-help/v1/help/${hid}`),
+    queryFn: () => apiFetch<HelpEntry>(`/api/v2/komari-help/help/${hid}`),
     enabled: hid !== undefined,
   });
 }
@@ -44,7 +44,7 @@ export function useCreateHelp() {
 
   return useMutation({
     mutationFn: (data: HelpCreateRequest) =>
-      apiFetch<HelpEntry>("/api/komari-help/v1/help", {
+      apiFetch<HelpEntry>("/api/v2/komari-help/help", {
         method: "POST",
         body: data,
       }),
@@ -59,7 +59,7 @@ export function useUpdateHelp() {
 
   return useMutation({
     mutationFn: ({ hid, data }: { hid: number; data: HelpUpdateRequest }) =>
-      apiFetch<HelpEntry>(`/api/komari-help/v1/help/${hid}`, {
+      apiFetch<HelpEntry>(`/api/v2/komari-help/help/${hid}`, {
         method: "PATCH",
         body: data,
       }),
@@ -75,7 +75,7 @@ export function useDeleteHelp() {
 
   return useMutation({
     mutationFn: (hid: number) =>
-      apiFetch<null>(`/api/komari-help/v1/help/${hid}`, {
+      apiFetch<null>(`/api/v2/komari-help/help/${hid}`, {
         method: "DELETE",
       }),
     onSuccess: () => {
@@ -88,7 +88,7 @@ export function useDeleteHelp() {
 export function useSearchHelp() {
   return useMutation({
     mutationFn: (data: HelpSearchRequest) =>
-      apiFetch<HelpSearchResult[]>("/api/komari-help/v1/search", {
+      apiFetch<HelpSearchResult[]>("/api/v2/komari-help/search", {
         method: "POST",
         body: data,
       }),
@@ -100,7 +100,7 @@ export function useScanHelp() {
 
   return useMutation({
     mutationFn: () =>
-      apiFetch<HelpScanResponse>("/api/komari-help/v1/scan", {
+      apiFetch<HelpScanResponse>("/api/v2/komari-help/scan", {
         method: "POST",
       }),
     onSuccess: () => {

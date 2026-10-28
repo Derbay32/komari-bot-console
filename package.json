@@ -10,7 +10,8 @@
     "typecheck": "next typegen && tsc --noEmit",
     "gen:api": "node scripts/sync-openapi.mjs",
     "test:lint": "node --test tools/eslint/*.test.mjs",
-    "check": "npm run typecheck && npm run lint && npm run test:lint"
+    "test:api": "node --test tools/api/*.test.mjs",
+    "check": "npm run typecheck && npm run lint && npm run test:lint && npm run test:api"
   },
   "dependencies": {
     "@ant-design/icons": "^6.1.1",

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { observePromise } from "@/lib/async";
 import { apiFetch } from "@/lib/http/client";
+import type { KnowledgeCategory } from "@/lib/knowledge";
 import type { components } from "@/types/komari-api";
 
 type KnowledgeEntry = components["schemas"]["KnowledgeEntry"];
@@ -12,7 +13,7 @@ type KnowledgeSearchRequest = components["schemas"]["KnowledgeSearchRequest"];
 
 type KnowledgeListParams = {
   q?: string | null;
-  category?: ("general" | "character" | "setting" | "plot" | "other") | null;
+  category?: KnowledgeCategory | null;
   limit?: number;
   offset?: number;
 };
@@ -21,7 +22,7 @@ export function useKnowledgeList(params: KnowledgeListParams) {
   return useQuery({
     queryKey: ["knowledge", "list", params],
     queryFn: () =>
-      apiFetch<KnowledgeListResponse>("/api/komari-knowledge/v1/knowledge", {
+      apiFetch<KnowledgeListResponse>("/api/v2/komari-knowledge/knowledge", {
         params: params as Record<string, string | number | null>,
       }),
   });
@@ -31,7 +32,7 @@ export function useKnowledge(kid: number | undefined) {
   return useQuery({
     queryKey: ["knowledge", "detail", kid],
     queryFn: () =>
-      apiFetch<KnowledgeEntry>(`/api/komari-knowledge/v1/knowledge/${kid}`),
+      apiFetch<KnowledgeEntry>(`/api/v2/komari-knowledge/knowledge/${kid}`),
     enabled: kid !== undefined,
   });
 }
@@ -40,7 +41,7 @@ export function useCreateKnowledge() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: KnowledgeCreateRequest) =>
-      apiFetch<KnowledgeEntry>("/api/komari-knowledge/v1/knowledge", {
+      apiFetch<KnowledgeEntry>("/api/v2/komari-knowledge/knowledge", {
         method: "POST",
         body: data,
       }),
@@ -54,7 +55,7 @@ export function useUpdateKnowledge() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ kid, data }: { kid: number; data: KnowledgeUpdateRequest }) =>
-      apiFetch<KnowledgeEntry>(`/api/komari-knowledge/v1/knowledge/${kid}`, {
+      apiFetch<KnowledgeEntry>(`/api/v2/komari-knowledge/knowledge/${kid}`, {
         method: "PATCH",
         body: data,
       }),
@@ -68,7 +69,7 @@ export function useDeleteKnowledge() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (kid: number) =>
-      apiFetch<null>(`/api/komari-knowledge/v1/knowledge/${kid}`, {
+      apiFetch<null>(`/api/v2/komari-knowledge/knowledge/${kid}`, {
         method: "DELETE",
       }),
     onSuccess: () => {
@@ -80,7 +81,7 @@ export function useDeleteKnowledge() {
 export function useSearchKnowledge() {
   return useMutation({
     mutationFn: (data: KnowledgeSearchRequest) =>
-      apiFetch<KnowledgeSearchHit[]>("/api/komari-knowledge/v1/search", {
+      apiFetch<KnowledgeSearchHit[]>("/api/v2/komari-knowledge/search", {
         method: "POST",
         body: data,
       }),
