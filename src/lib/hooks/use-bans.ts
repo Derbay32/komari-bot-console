@@ -18,7 +18,7 @@ export function useBanList(params: BanListParams) {
   return useQuery({
     queryKey: ["bans", "list", params],
     queryFn: () =>
-      apiFetch<BanListResponse>("/api/komari-user-bans/v1/bans", {
+      apiFetch<BanListResponse>("/api/v2/komari-user-bans/bans", {
         params: params as Record<string, string | number | null>,
       }),
   });
@@ -34,7 +34,7 @@ export function useCreateOrUpdateBan() {
       data: CreateBanRequest;
       auditReason: string;
     }) =>
-      apiFetch<BanMutationResponse>("/api/komari-user-bans/v1/bans", {
+      apiFetch<BanMutationResponse>("/api/v2/komari-user-bans/bans", {
         method: "POST",
         headers: buildAuditHeaders(auditReason),
         body: data,
@@ -58,7 +58,7 @@ export function useDeleteBan() {
       auditReason: string;
     }) =>
       apiFetch<BanMutationResponse>(
-        `/api/komari-user-bans/v1/bans/${encodeURIComponent(userId)}/${encodeURIComponent(scope)}`,
+        `/api/v2/komari-user-bans/bans/${encodeURIComponent(userId)}/${encodeURIComponent(scope)}`,
         {
           method: "DELETE",
           headers: buildAuditHeaders(auditReason),

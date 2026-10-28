@@ -160,7 +160,8 @@ test("the CLI and CI use the same zero-warning acceptance commands", async () =>
   assert.equal(scripts.lint, "eslint . --max-warnings 0");
   assert.equal(scripts.typecheck, "next typegen && tsc --noEmit");
   assert.equal(scripts["test:lint"], "node --test tools/eslint/*.test.mjs");
-  assert.equal(scripts.check, "npm run typecheck && npm run lint && npm run test:lint");
+  assert.equal(scripts["test:api"], "node --test tools/api/*.test.mjs");
+  assert.equal(scripts.check, "npm run typecheck && npm run lint && npm run test:lint && npm run test:api");
   const workflow = await readFile(path.join(root, ".github/workflows/quality.yml"), "utf8");
   assert.match(workflow, /\n  pull_request:/);
   assert.match(workflow, /run: npm run check/);

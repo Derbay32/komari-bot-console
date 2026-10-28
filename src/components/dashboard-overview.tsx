@@ -23,7 +23,7 @@ export function DashboardOverview() {
     queryKey: ["dashboard", "overview"],
     queryFn: async () => {
       const knowledge = await apiFetch<KnowledgeListResponse>(
-        "/api/komari-knowledge/v1/knowledge",
+        "/api/v2/komari-knowledge/knowledge",
         { params: { limit: 1, offset: 0 } },
       );
 
