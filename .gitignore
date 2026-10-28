@@ -33,6 +33,7 @@ secret.json
 # Coding Agents
 .pi/
 .agents/
+.dsh/
 .codeartsdoer/
 .playwright-mcp/
 
