@@ -71,7 +71,11 @@ export function AnnounceDetailsModal({
       ),
     [groupsQuery.data?.groups],
   );
-  const notice = detailQuery.data?.notice ?? null;
+  const missing =
+    detailQuery.isError &&
+    detailQuery.error instanceof ApiError &&
+    detailQuery.error.status === 404;
+  const notice = missing ? null : (detailQuery.data?.notice ?? null);
   const handleClose = useCallback(() => {
     setCancelConflict(null);
     setRetryOpen(false);
@@ -187,7 +191,7 @@ export function AnnounceDetailsModal({
           </Space>
         ) : null}
 
-        {detailQuery.isError ? (
+        {detailQuery.isError && !missing ? (
           <Alert
             showIcon
             type="error"
@@ -199,7 +203,16 @@ export function AnnounceDetailsModal({
           />
         ) : null}
 
-        {cancelConflict ? (
+        {missing ? (
+          <Alert
+            showIcon
+            type="warning"
+            title="通知不存在或已被清理"
+            description="该通知可能从未存在，或已超过保留期限被清理，无法继续查看详情。"
+          />
+        ) : null}
+
+        {cancelConflict && !missing ? (
           <Alert
             showIcon
             type="warning"

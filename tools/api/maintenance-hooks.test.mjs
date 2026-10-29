@@ -132,19 +132,25 @@ describe("announcement hooks", () => {
     );
   });
 
-  it("loads notice details only for a selected id and polls while active", async () => {
+  it("loads notice details only for a selected id and polls every open detail", async () => {
     const detail = { notice: { ...noticeSummary(), attempts: [] } };
     fetchHandler = () => jsonResponse(detail);
     resetCapturedHooks();
 
     hooks.useAnnouncementDetail(null);
     assert.equal(capturedQueries[0].enabled, false);
+    assert.equal(
+      capturedQueries[0].refetchInterval({ state: { data: undefined } }),
+      false,
+    );
 
     resetCapturedHooks();
     hooks.useAnnouncementDetail("notice/1");
     const config = capturedQueries[0];
     assert.deepEqual(config.queryKey, ["announce", "notice", "notice/1"]);
     assert.equal(config.enabled, true);
+    assert.equal(config.refetchOnMount, "always");
+    assert.equal(config.refetchIntervalInBackground, false);
     const data = await config.queryFn();
     assert.equal(
       requests[0].url,
@@ -154,6 +160,69 @@ describe("announcement hooks", () => {
       config.refetchInterval({ state: { data } }),
       2000,
     );
+    assert.equal(
+      config.refetchInterval({
+        state: {
+          data: {
+            notice: {
+              ...noticeSummary({ activity: null, status: "sent" }),
+              attempts: [],
+            },
+          },
+        },
+      }),
+      2000,
+    );
+  });
+
+  it("stops polling and invalidates the list when a detail is missing", async () => {
+    const notFound = new client.ApiError(
+      404,
+      { message: "通知不存在。" },
+      "通知不存在。",
+    );
+    fetchHandler = () => jsonResponse({ message: "通知不存在。" }, 404);
+    resetCapturedHooks();
+
+    hooks.useAnnouncementDetail("notice-gone");
+    const config = capturedQueries[0];
+
+    await assert.rejects(config.queryFn(), (error) => {
+      assert.equal(error.name, "ApiError");
+      assert.equal(error.status, 404);
+      return true;
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.deepEqual(invalidations, [["announce", "notices"]]);
+    assert.equal(config.retry(0, notFound), false);
+    assert.equal(
+      config.refetchInterval({ state: { error: notFound } }),
+      false,
+    );
+  });
+
+  it("keeps the project retry policy and polling for non-404 detail failures", async () => {
+    const failure = new client.ApiError(500, { message: "读取失败。" });
+    const notFound = new client.ApiError(404, { message: "通知不存在。" });
+    fetchHandler = () => jsonResponse({ message: "读取失败。" }, 500);
+    resetCapturedHooks();
+
+    hooks.useAnnouncementDetail("notice-1");
+    const config = capturedQueries[0];
+
+    await assert.rejects(config.queryFn(), (error) => {
+      assert.equal(error.name, "ApiError");
+      assert.equal(error.status, 500);
+      return true;
+    });
+    assert.deepEqual(invalidations, []);
+
+    assert.equal(config.retry(0, failure), true);
+    assert.equal(config.retry(1, failure), false);
+    assert.equal(config.retry(0, notFound), false);
+    assert.equal(config.refetchInterval({ state: { error: failure } }), 2000);
+    assert.equal(config.refetchInterval({ state: {} }), 2000);
   });
 
   it("creates tasks through the local console API with the submission key", async () => {
