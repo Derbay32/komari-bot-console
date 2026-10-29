@@ -66,7 +66,7 @@ a {
   position: sticky !important;
   top: 16px;
   align-self: flex-start;
-  height: calc(100vh - 32px);
+  height: calc(100dvh - 32px);
   margin: 16px;
   overflow: hidden;
   border: 1px solid var(--border-soft);
@@ -74,6 +74,42 @@ a {
   background: var(--panel-bg) !important;
   box-shadow: var(--card-shadow);
   backdrop-filter: blur(18px);
+}
+
+.console-sider .ant-layout-sider-children {
+  display: flex;
+  flex-direction: column;
+}
+
+.console-sider__navigation {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.console-sider__scroll {
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.console-sider__footer {
+  flex: none;
+  padding: 12px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.console-sider__footer .theme-toggle.ant-segmented-block .ant-segmented-item {
+  flex: 1 0 auto;
+}
+
+.console-sider__footer .theme-toggle .ant-segmented-item-label {
+  padding: 0 6px;
+}
+
+.console-sider__footer .theme-toggle__option {
+  gap: 4px;
 }
 
 .console-brand {
@@ -264,54 +300,8 @@ html.dark .console-menu .ant-menu-item-selected {
   background: transparent;
 }
 
-.console-header {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-items: center;
-  justify-content: space-between;
-  height: auto;
-  margin: 16px 16px 0 0;
-  padding: 20px 24px;
-  border: 1px solid var(--border-soft);
-  border-radius: 28px;
-  background: var(--panel-bg-strong) !important;
-  box-shadow: var(--card-shadow);
-  backdrop-filter: blur(18px);
-}
-
-.console-header__title-group {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  min-width: 0;
-}
-
-.console-header__title.ant-typography {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  margin: 0;
-}
-
-.console-header__title.ant-typography::before {
-  flex: none;
-  width: 6px;
-  height: 20px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, var(--brand) 0%, var(--accent-gold) 100%);
-  content: "";
-}
-
-.console-header__actions {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  min-width: 0;
-}
-
-.console-header__menu-btn.ant-btn {
-  flex: none;
+.console-mobile-menu-btn.ant-btn {
+  display: none;
   color: var(--text-main);
 }
 
@@ -363,7 +353,9 @@ html.dark .console-menu .ant-menu-item-selected {
 }
 
 .console-content {
-  padding: 16px 16px 16px 0;
+  --console-content-padding: clamp(24px, 3vw, 64px);
+  position: relative;
+  padding: var(--console-content-padding);
   min-width: 0;
 }
 
@@ -462,11 +454,8 @@ html.dark .stat-card__icon--rose {
   background: var(--panel-bg) !important;
 }
 
-.console-nav-drawer .ant-drawer-body {
-  position: relative;
-  height: 100%;
-  padding: 0;
-  overflow: hidden;
+.console-nav-drawer .console-sider__footer {
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
 }
 
 .page-header {
@@ -610,23 +599,13 @@ html.dark .config-page .ant-menu .ant-menu-item-selected {
     margin: 12px;
   }
 
-  .console-header {
-    margin: 0 12px;
-    padding: 16px;
-  }
-
-  .console-header__actions {
-    width: 100%;
-    justify-content: flex-end;
-  }
-
   .theme-toggle.ant-segmented {
     width: auto;
     max-width: 100%;
   }
 
   .console-content {
-    padding: 12px;
+    --console-content-padding: clamp(20px, 3vw, 28px);
   }
 
   .knowledge-page__toolbar {
@@ -655,45 +634,8 @@ html.dark .config-page .ant-menu .ant-menu-item-selected {
     width: 100%;
   }
 
-  .console-header {
-    position: sticky;
-    top: 12px;
-    z-index: 20;
-    flex-wrap: nowrap;
-    align-items: center;
-  }
-
-  .console-header__title-group {
-    flex: 1;
-    width: auto;
-    min-width: 0;
-  }
-
-  .console-header__title-group .ant-typography {
-    overflow: hidden;
-    font-size: 20px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .theme-toggle .ant-segmented-item-label {
-    padding: 0 8px;
+  .console-sider__footer .theme-toggle .ant-segmented-item-label {
     font-size: 12px;
-  }
-
-  .theme-toggle.ant-segmented {
-    margin-left: auto;
-    flex: none;
-  }
-
-  .theme-toggle__option {
-    justify-content: center;
-    gap: 0;
-    width: 100%;
-  }
-
-  .theme-toggle__text {
-    display: none;
   }
 
   .knowledge-page__toolbar,
@@ -736,5 +678,43 @@ html.dark .config-page .ant-menu .ant-menu-item-selected {
 
   .config-page__summary-card .ant-card-extra .ant-btn {
     width: 100%;
+  }
+}
+
+@media (max-height: 600px) {
+  .console-sider-deco {
+    display: none;
+  }
+}
+
+@media (max-width: 767px) and (orientation: portrait) {
+  .console-sider {
+    display: none;
+  }
+
+  .console-mobile-menu-btn.ant-btn {
+    display: inline-flex;
+    position: absolute;
+    top: calc(var(--console-content-padding) + 4px);
+    left: var(--console-content-padding);
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+  }
+
+  .console-content .page-header__main {
+    margin-left: 52px;
+  }
+
+  .console-content .page-title.ant-typography {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  /* The overview and route status screens do not have a standard page heading. */
+  .console-content:not(:has(.page-header)) .console-mobile-menu-btn {
+    position: static;
+    margin-bottom: 12px;
   }
 }
