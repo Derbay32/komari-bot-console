@@ -6,6 +6,7 @@
  */
 
 export const MAINTENANCE_AUDIT_REASON = "发送维护通知";
+export const MAINTENANCE_RETRY_AUDIT_REASON = "手动重试维护通知";
 export const MAINTENANCE_MISSING_RESULT_REASON = "上游未返回结果";
 
 export const MAINTENANCE_UPSTREAM_PATH = "/api/v2/komari-announce/maintenance";
@@ -142,6 +143,27 @@ export type MaintenanceCreateResult = {
   created: boolean;
 };
 
+export type MaintenanceRetryPreview = {
+  noticeId: string;
+  version: number;
+  title: string;
+  content: string;
+  maintenanceTime: string;
+  targetGroupIds: number[];
+  blockedReason: string | null;
+};
+
+export type MaintenanceRetryInput = {
+  version: number;
+  groupIds: number[];
+};
+
+export type MaintenanceRetryResult = {
+  notice: MaintenanceNoticeSummary;
+  attemptId: string;
+  created: boolean;
+};
+
 export type MaintenanceRunResult = {
   processed: boolean;
   noticeId: string | null;
@@ -172,6 +194,12 @@ export type MaintenanceService = {
   ): Promise<MaintenanceCreateResult>;
   list(): Promise<MaintenanceNoticeSummary[]>;
   get(id: string): Promise<MaintenanceNotice | null>;
+  previewRetry(id: string): Promise<MaintenanceRetryPreview | null>;
+  retry(
+    id: string,
+    input: MaintenanceRetryInput,
+    submissionId: string,
+  ): Promise<MaintenanceRetryResult>;
   runOnce(): Promise<MaintenanceRunResult>;
 };
 
@@ -196,6 +224,13 @@ export class MaintenanceConflictError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "MaintenanceConflictError";
+  }
+}
+
+export class MaintenanceNotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "MaintenanceNotFoundError";
   }
 }
 
@@ -268,6 +303,40 @@ export function validateMaintenanceSubmissionId(value: unknown): string {
   }
 
   return value;
+}
+
+/**
+ * Validate and normalize the manual retry confirmation body. Callers may only
+ * confirm the previewed version and ordered target list; content and target
+ * expansion are not accepted.
+ */
+export function parseMaintenanceRetryInput(value: unknown): MaintenanceRetryInput {
+  if (!isRecord(value)) {
+    throw new MaintenanceInputError("请求体必须是 JSON 对象。");
+  }
+
+  const allowedKeys = new Set(["version", "groupIds"]);
+
+  for (const key of Object.keys(value)) {
+    if (!allowedKeys.has(key)) {
+      throw new MaintenanceInputError(`请求包含未知字段：${key}。`);
+    }
+  }
+
+  const version = value.version;
+
+  if (
+    typeof version !== "number" ||
+    !Number.isSafeInteger(version) ||
+    version < 1
+  ) {
+    throw new MaintenanceInputError("版本号必须是正整数。");
+  }
+
+  return {
+    groupIds: normalizeGroupIds(value.groupIds),
+    version,
+  };
 }
 
 export function estimateMaintenanceTokens(text: string): number {

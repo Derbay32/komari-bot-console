@@ -1,5 +1,6 @@
 "use client";
 
+import { ReloadOutlined } from "@ant-design/icons";
 import {
   Alert,
   Button,
@@ -11,10 +12,11 @@ import {
   Tag,
   Typography,
 } from "antd";
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type * as React from "react";
 
 import styles from "@/components/announce/announce.module.css";
+import { AnnounceRetryModal } from "@/components/announce/announce-retry-modal";
 import { getRequestErrorMessage } from "@/lib/http/error";
 import {
   useAnnouncementDetail,
@@ -40,6 +42,7 @@ export function AnnounceDetailsModal({
 }) {
   const detailQuery = useAnnouncementDetail(noticeId);
   const groupsQuery = useGroupList();
+  const [retryOpen, setRetryOpen] = useState(false);
   const groupNameMap = useMemo(
     () =>
       new Map(
@@ -50,60 +53,82 @@ export function AnnounceDetailsModal({
     [groupsQuery.data?.groups],
   );
   const notice = detailQuery.data?.notice ?? null;
+  const handleClose = useCallback(() => {
+    setRetryOpen(false);
+    onClose();
+  }, [onClose]);
 
   return (
-    <Modal
-      open={noticeId !== null}
-      centered
-      width={860}
-      title="通知详情（只读）"
-      onCancel={onClose}
-      wrapProps={{
-        onKeyDownCapture: (event: React.KeyboardEvent<HTMLDivElement>) => {
-          if (
-            noticeId !== null &&
-            event.key === "Escape" &&
-            !event.nativeEvent.isComposing
-          ) {
-            // Prevent the browser Escape default while leaving dismissal to AntD.
-            event.preventDefault();
-          }
-        },
-      }}
-      classNames={{ body: styles.modalBody }}
-      footer={[
-        <Button key="close" onClick={onClose}>
-          关闭
-        </Button>,
-      ]}
-    >
-      {detailQuery.isPending ? (
-        <Space className={styles.loadingBlock}>
-          <Spin />
-          <Typography.Text type="secondary">加载通知详情...</Typography.Text>
-        </Space>
-      ) : null}
+    <>
+      <Modal
+        open={noticeId !== null}
+        centered
+        width={860}
+        title="通知详情（只读）"
+        onCancel={handleClose}
+        wrapProps={{
+          onKeyDownCapture: (event: React.KeyboardEvent<HTMLDivElement>) => {
+            if (
+              noticeId !== null &&
+              event.key === "Escape" &&
+              !event.nativeEvent.isComposing
+            ) {
+              // Prevent the browser Escape default while leaving dismissal to AntD.
+              event.preventDefault();
+            }
+          },
+        }}
+        classNames={{ body: styles.modalBody }}
+        footer={[
+          notice?.status === "sent" ? (
+            <Button
+              key="retry"
+              icon={<ReloadOutlined />}
+              onClick={() => setRetryOpen(true)}
+            >
+              重试失败群
+            </Button>
+          ) : null,
+          <Button key="close" onClick={handleClose}>
+            关闭
+          </Button>,
+        ]}
+      >
+        {detailQuery.isPending ? (
+          <Space className={styles.loadingBlock}>
+            <Spin />
+            <Typography.Text type="secondary">加载通知详情...</Typography.Text>
+          </Space>
+        ) : null}
 
-      {detailQuery.isError ? (
-        <Alert
-          showIcon
-          type="error"
-          title="通知详情加载失败"
-          description={getRequestErrorMessage(
-            detailQuery.error,
-            "请稍后重试。",
-          )}
+        {detailQuery.isError ? (
+          <Alert
+            showIcon
+            type="error"
+            title="通知详情加载失败"
+            description={getRequestErrorMessage(
+              detailQuery.error,
+              "请稍后重试。",
+            )}
+          />
+        ) : null}
+
+        {!detailQuery.isPending && !detailQuery.isError && !notice ? (
+          <Empty description="通知不存在" />
+        ) : null}
+
+        {notice ? (
+          <NoticeDetails notice={notice} groupNameMap={groupNameMap} />
+        ) : null}
+      </Modal>
+
+      {retryOpen && notice ? (
+        <AnnounceRetryModal
+          noticeId={notice.id}
+          onClose={() => setRetryOpen(false)}
         />
       ) : null}
-
-      {!detailQuery.isPending && !detailQuery.isError && !notice ? (
-        <Empty description="通知不存在" />
-      ) : null}
-
-      {notice ? (
-        <NoticeDetails notice={notice} groupNameMap={groupNameMap} />
-      ) : null}
-    </Modal>
+    </>
   );
 }
 

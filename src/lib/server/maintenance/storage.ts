@@ -5,7 +5,9 @@ import { createRequestId } from "../../http/audit";
 import {
   buildMaintenanceAggregate,
   MAINTENANCE_AUDIT_REASON,
+  MAINTENANCE_RETRY_AUDIT_REASON,
   MaintenanceConflictError,
+  MaintenanceNotFoundError,
   type MaintenanceAttempt,
   type MaintenanceAttemptPhase,
   type MaintenanceAttemptTotals,
@@ -14,6 +16,8 @@ import {
   type MaintenanceNoticeStatus,
   type MaintenanceNoticeSummary,
   type MaintenanceOutcome,
+  type MaintenanceRetryInput,
+  type MaintenanceRetryPreview,
   type MaintenanceTargetEvidence,
   type MaintenanceUpstreamRequestBody,
 } from "../../maintenance";
@@ -24,6 +28,16 @@ import {
 } from "./schema";
 
 const CONFLICT_MESSAGE = "提交标识已被不同的通知内容使用。";
+const RETRY_SUBMISSION_CONFLICT_MESSAGE =
+  "重试提交标识已被不同的重试请求使用。";
+const RETRY_VERSION_CONFLICT_MESSAGE =
+  "通知已更新，需重新获取重试名单。";
+const RETRY_LIST_CONFLICT_MESSAGE =
+  "可重试目标群已变化，需重新获取重试名单。";
+const RETRY_BUSY_REASON = "通知存在排队或执行中的尝试时不能手动重试。";
+const RETRY_NOT_SENT_REASON = "只有状态为已发送的通知支持手动重试失败群。";
+const RETRY_NO_TARGETS_REASON =
+  "没有可重试的目标群。成功、结果未知和需人工核对的目标不会进入重试名单。";
 
 export function openMaintenanceDatabase(databasePath: string) {
   const database = openConsoleDatabase(databasePath);
@@ -171,6 +185,226 @@ export function readNoticeSummary(
   });
 }
 
+export function readRetryPreview(
+  database: DatabaseSync,
+  id: string,
+): MaintenanceRetryPreview | null {
+  return withReadTransaction(database, () => {
+    const row = database
+      .prepare("SELECT * FROM maintenance_notices WHERE id = ?")
+      .get(id);
+
+    if (!row) {
+      return null;
+    }
+
+    const record = readNoticeRecord(database, row);
+
+    return buildRetryPreview(record.summary, record.attempts);
+  });
+}
+
+function buildRetryPreview(
+  summary: MaintenanceNoticeSummary,
+  attempts: readonly MaintenanceAttempt[],
+): MaintenanceRetryPreview {
+  const busy = attempts.some((attempt) => attempt.phase !== "completed");
+  const targetGroupIds =
+    summary.status === "sent" && !busy
+      ? summary.aggregate.perGroup
+          .filter(isRetryEligibleTarget)
+          .map((target) => target.groupId)
+      : [];
+  let blockedReason: string | null = null;
+
+  if (targetGroupIds.length === 0) {
+    blockedReason = busy
+      ? RETRY_BUSY_REASON
+      : summary.status !== "sent"
+        ? RETRY_NOT_SENT_REASON
+        : RETRY_NO_TARGETS_REASON;
+  }
+
+  return {
+    blockedReason,
+    content: summary.content,
+    maintenanceTime: summary.maintenanceTime,
+    noticeId: summary.id,
+    targetGroupIds,
+    title: summary.title,
+    version: summary.version,
+  };
+}
+
+function isRetryEligibleTarget(target: {
+  outcome: MaintenanceOutcome | null;
+  retryBlocked: boolean;
+  requiresReconciliation: boolean;
+}) {
+  return (
+    (target.outcome === "failed" || target.outcome === "unreachable") &&
+    !target.retryBlocked &&
+    !target.requiresReconciliation
+  );
+}
+
+export type MaintenanceRetryEnqueueResult = {
+  noticeId: string;
+  attemptId: string;
+  created: boolean;
+};
+
+/**
+ * Enqueue one manual retry attempt. The submission receipt is checked before
+ * any eligibility read so a local replay returns the original attempt even
+ * after the notice or its results changed. A first-time key must match the
+ * current notice version and the exact ordered eligible target list.
+ */
+export function enqueueRetry(
+  database: DatabaseSync,
+  noticeId: string,
+  input: MaintenanceRetryInput,
+  submissionId: string,
+  now: number,
+): MaintenanceRetryEnqueueResult {
+  const fingerprint = createRetryFingerprint(noticeId, input);
+
+  database.exec("BEGIN IMMEDIATE");
+
+  try {
+    const receipt = database
+      .prepare(
+        `SELECT notice_id, attempt_id, fingerprint
+         FROM maintenance_retry_submissions
+         WHERE submission_key = ?`,
+      )
+      .get(submissionId);
+
+    if (receipt) {
+      if (
+        readString(receipt, "notice_id") !== noticeId ||
+        readString(receipt, "fingerprint") !== fingerprint
+      ) {
+        throw new MaintenanceConflictError(RETRY_SUBMISSION_CONFLICT_MESSAGE);
+      }
+
+      database.exec("COMMIT");
+
+      return {
+        attemptId: readString(receipt, "attempt_id"),
+        created: false,
+        noticeId,
+      };
+    }
+
+    const row = database
+      .prepare("SELECT * FROM maintenance_notices WHERE id = ?")
+      .get(noticeId);
+
+    if (!row) {
+      throw new MaintenanceNotFoundError("通知不存在。");
+    }
+
+    const record = readNoticeRecord(database, row);
+    const preview = buildRetryPreview(record.summary, record.attempts);
+
+    if (record.summary.version !== input.version) {
+      throw new MaintenanceConflictError(RETRY_VERSION_CONFLICT_MESSAGE);
+    }
+
+    if (!hasSameOrderedGroupIds(preview.targetGroupIds, input.groupIds)) {
+      throw new MaintenanceConflictError(RETRY_LIST_CONFLICT_MESSAGE);
+    }
+
+    const nextNumberRow = database
+      .prepare(
+        `SELECT COALESCE(MAX(attempt_number), 0) + 1 AS next_number
+         FROM maintenance_attempts
+         WHERE notice_id = ?`,
+      )
+      .get(noticeId);
+    const attemptNumber = readNumber(nextNumberRow ?? {}, "next_number");
+    const attemptId = randomUUID();
+    const targetGroupIdsJson = JSON.stringify(input.groupIds);
+    const requestBody: MaintenanceUpstreamRequestBody = {
+      content: record.summary.content,
+      group_ids: [...input.groupIds],
+      scheduled_time: record.summary.maintenanceTime,
+      title: record.summary.title,
+    };
+
+    database
+      .prepare(
+        `INSERT INTO maintenance_attempts
+          (id, notice_id, attempt_number, request_id, audit_reason, body_json,
+           target_group_ids, phase, executed, started_at, ended_at,
+           request_error, remaining_seconds, requires_reconciliation,
+           owner_token, lease_expires_at, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'queued', 0, NULL, NULL,
+                 NULL, NULL, 0, NULL, NULL, ?, ?)`,
+      )
+      .run(
+        attemptId,
+        noticeId,
+        attemptNumber,
+        createRequestId("maint"),
+        MAINTENANCE_RETRY_AUDIT_REASON,
+        JSON.stringify(requestBody),
+        targetGroupIdsJson,
+        now,
+        now,
+      );
+
+    database
+      .prepare(
+        `UPDATE maintenance_notices
+         SET version = version + 1, updated_at = ?
+         WHERE id = ?`,
+      )
+      .run(now, noticeId);
+
+    database
+      .prepare(
+        `INSERT INTO maintenance_retry_submissions
+          (submission_key, notice_id, attempt_id, fingerprint, created_at)
+         VALUES (?, ?, ?, ?, ?)`,
+      )
+      .run(submissionId, noticeId, attemptId, fingerprint, now);
+
+    database.exec("COMMIT");
+
+    return { attemptId, created: true, noticeId };
+  } catch (error) {
+    rollbackQuietly(database);
+    throw error;
+  }
+}
+
+function createRetryFingerprint(
+  noticeId: string,
+  input: MaintenanceRetryInput,
+) {
+  return createHash("sha256")
+    .update(
+      JSON.stringify({
+        groupIds: input.groupIds,
+        noticeId,
+        version: input.version,
+      }),
+    )
+    .digest("hex");
+}
+
+function hasSameOrderedGroupIds(
+  left: readonly number[],
+  right: readonly number[],
+) {
+  return (
+    left.length === right.length &&
+    left.every((groupId, index) => groupId === right[index])
+  );
+}
+
 export type ClaimedMaintenanceAttempt = {
   noticeId: string;
   attemptId: string;
@@ -188,6 +422,9 @@ export function claimQueuedAttempt(
   database.exec("BEGIN IMMEDIATE");
 
   try {
+    // Retry attempts start immediately on a sent notice. The first-attempt
+    // scheduling window is owned by the scheduling change and stays in the
+    // second branch for integration.
     const row = database
       .prepare(
         `SELECT a.id, a.notice_id, a.request_id, a.audit_reason,
@@ -195,9 +432,12 @@ export function claimQueuedAttempt(
          FROM maintenance_attempts AS a
          JOIN maintenance_notices AS n ON n.id = a.notice_id
          WHERE a.phase = 'queued'
-           AND n.mode = 'immediate'
-           AND n.planned_at IS NULL
-           AND n.status IN ('upcoming', 'sent')
+           AND (
+             (a.attempt_number > 1 AND n.status = 'sent')
+             OR (n.mode = 'immediate'
+                 AND n.planned_at IS NULL
+                 AND n.status IN ('upcoming', 'sent'))
+           )
          ORDER BY a.created_at ASC, a.attempt_number ASC
          LIMIT 1`,
       )

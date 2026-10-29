@@ -6,6 +6,7 @@ import type {
   MaintenanceCreateInput,
   MaintenanceNotice,
   MaintenanceNoticeSummary,
+  MaintenanceRetryPreview,
 } from "@/lib/maintenance";
 import type { components } from "@/types/komari-api";
 
@@ -21,6 +22,16 @@ type AnnouncementDetailResponse = {
 
 type CreateAnnouncementResponse = {
   notice: MaintenanceNoticeSummary;
+};
+
+type RetryPreviewResponse = {
+  preview: MaintenanceRetryPreview;
+};
+
+type RetryAnnouncementResponse = {
+  notice: MaintenanceNoticeSummary;
+  attemptId: string;
+  created: boolean;
 };
 
 const ACTIVE_ATTEMPT_POLL_INTERVAL_MS = 2_000;
@@ -78,6 +89,61 @@ export function useCreateAnnouncement() {
         headers: { "X-Request-ID": submissionId },
         method: "POST",
       }),
+    onSuccess: () => {
+      observePromise(
+        queryClient.invalidateQueries({ queryKey: ["announce", "notices"] }),
+      );
+      observePromise(
+        queryClient.invalidateQueries({ queryKey: ["announce", "notice"] }),
+      );
+    },
+  });
+}
+
+/**
+ * Load one retry preview. Callers pass a fresh token per confirmation session
+ * so the preview never changes underneath an already-confirmed payload.
+ */
+export function useRetryAnnouncementPreview(
+  noticeId: string,
+  previewToken: string,
+) {
+  return useQuery({
+    queryKey: ["announce", "retry-preview", noticeId, previewToken],
+    queryFn: () =>
+      consoleFetch<RetryPreviewResponse>(
+        `/announcements/${encodeURIComponent(noticeId)}/retry`,
+      ),
+    gcTime: 0,
+    refetchOnReconnect: false,
+    refetchOnWindowFocus: false,
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+}
+
+export function useRetryAnnouncement() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      noticeId,
+      version,
+      groupIds,
+      submissionId,
+    }: {
+      noticeId: string;
+      version: number;
+      groupIds: number[];
+      submissionId: string;
+    }) =>
+      consoleFetch<RetryAnnouncementResponse>(
+        `/announcements/${encodeURIComponent(noticeId)}/retry`,
+        {
+          body: { groupIds, version },
+          headers: { "X-Request-ID": submissionId },
+          method: "POST",
+        },
+      ),
     onSuccess: () => {
       observePromise(
         queryClient.invalidateQueries({ queryKey: ["announce", "notices"] }),
