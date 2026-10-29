@@ -21,6 +21,7 @@ import { useTheme } from "next-themes";
 import { useState, useSyncExternalStore } from "react";
 
 import { BrandLogo, D20Icon, DaisyIcon } from "@/components/brand-logo";
+import { LogoutButton } from "@/components/auth/logout-button";
 
 const { Content, Sider } = Layout;
 
@@ -153,6 +154,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     />
   );
 
+  const footerContent = (
+    <>
+      <LogoutButton />
+      <div style={{ marginTop: 8 }}>{themeToggle}</div>
+    </>
+  );
+
   const navigationContent = (
     <div className="console-sider__navigation">
       <div className="console-sider__scroll">
@@ -208,11 +216,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         }}
       >
         {navigationContent}
-        <div className="console-sider__footer">{themeToggle}</div>
+        <div className="console-sider__footer">{footerContent}</div>
       </Drawer>
       <Sider width={252} className="console-sider">
         {navigationContent}
-        <div className="console-sider__footer">{themeToggle}</div>
+        <div className="console-sider__footer">{footerContent}</div>
       </Sider>
       <Layout className="console-main">
         <Content className="console-content">
