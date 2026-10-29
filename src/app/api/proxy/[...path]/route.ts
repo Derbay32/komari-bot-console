@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
+import { authorizeConsoleRequest } from "@/lib/server/auth";
 import { getRuntimeConfig } from "@/lib/server/runtime-config";
 
 export const dynamic = "force-dynamic";
@@ -12,17 +13,27 @@ type RouteContext = {
 };
 
 async function proxyRequest(request: NextRequest, context: RouteContext) {
+  const authorization = await authorizeConsoleRequest(request);
+
+  if (!authorization.authorized) {
+    authorization.response.headers.set("cache-control", "no-store, private");
+    return authorization.response;
+  }
+
   try {
     const { path } = await context.params;
     const { apiOrigin, bearerToken } = await getRuntimeConfig();
-    const upstreamUrl = new URL(`/${path.join("/")}`, apiOrigin);
+    const upstreamUrl = new URL(apiOrigin);
 
+    upstreamUrl.pathname = `/${path.join("/")}`;
     upstreamUrl.search = request.nextUrl.search;
+    upstreamUrl.hash = "";
 
     const headers = new Headers(request.headers);
     headers.set("authorization", `Bearer ${bearerToken}`);
     headers.delete("connection");
     headers.delete("content-length");
+    headers.delete("cookie");
     headers.delete("host");
 
     const body = canHaveBody(request.method) ? await request.arrayBuffer() : undefined;
@@ -36,20 +47,21 @@ async function proxyRequest(request: NextRequest, context: RouteContext) {
     const responseHeaders = new Headers(upstreamResponse.headers);
     responseHeaders.delete("content-encoding");
     responseHeaders.delete("content-length");
+    responseHeaders.delete("set-cookie");
     responseHeaders.delete("transfer-encoding");
+    responseHeaders.set("cache-control", "no-store, private");
 
     return new NextResponse(upstreamResponse.body, {
       status: upstreamResponse.status,
       headers: responseHeaders,
     });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "代理请求失败";
-
+  } catch {
     return NextResponse.json(
       {
-        message,
+        message: "上游服务请求失败。",
       },
       {
+        headers: { "cache-control": "no-store, private" },
         status: 502,
       },
     );

@@ -1,5 +1,8 @@
 type QueryValue = string | number | boolean | null | undefined;
 
+// Wire marker mirrored by src/lib/server/auth.ts; do not import server auth here.
+const CONSOLE_UNAUTHENTICATED_CODE = "CONSOLE_UNAUTHENTICATED";
+
 type ApiFetchOptions = Omit<RequestInit, "body"> & {
   params?: Record<string, QueryValue>;
   body?: BodyInit | Record<string, unknown> | null;
@@ -29,11 +32,31 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}) {
   });
   const payload = await parseResponseBody(response);
 
+  if (response.status === 401 && isConsoleUnauthenticated(payload)) {
+    redirectToLogin();
+  }
+
   if (!response.ok) {
     throw new ApiError(response.status, payload, resolveErrorMessage(payload, response.status));
   }
 
   return payload as T;
+}
+
+function isConsoleUnauthenticated(payload: unknown) {
+  return (
+    !!payload &&
+    typeof payload === "object" &&
+    Reflect.get(payload, "code") === CONSOLE_UNAUTHENTICATED_CODE
+  );
+}
+
+function redirectToLogin() {
+  if (typeof window === "undefined" || window.location.pathname === "/login") {
+    return;
+  }
+
+  window.location.replace("/login");
 }
 
 function buildProxyUrl(path: string, params?: Record<string, QueryValue>) {
