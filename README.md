@@ -64,10 +64,9 @@ npm run typecheck
 
 ### 构建生产版本
 
-```bash
-npm run build
-npm run start
-```
+1. 运行 `npm run build`。预期结果：生成 Next.js 产物，并将维护通知 Worker 编译到 `dist/maintenance-worker`。
+2. 运行 `npm run start`。预期结果：控制台 Web 服务启动。
+3. 在另一个终端运行 `npm run start:worker`。预期结果：维护通知 Worker 开始轮询本地任务。
 
 ## 控制台登录
 
@@ -107,10 +106,37 @@ unset CONSOLE_ADMIN_PASSWORD
 
 3. 如果通过进程环境变量注入值，删除反斜杠。检查：值以 `scrypt$` 开头。
 
+## 维护通知 Worker
+
+控制台进程只创建和读取维护通知任务。Worker 是独立进程。Worker 从同一个 SQLite 数据库领取任务，并调用上游发送接口。
+
+Worker 读取 3 个环境变量：
+
+| 变量 | 说明 |
+|------|------|
+| `CONSOLE_DATABASE_PATH` | 与 Web 服务相同的 SQLite 绝对文件路径 |
+| `KOMARI_API_ORIGIN` | 上游 API 来源地址 |
+| `KOMARI_API_BEARER_TOKEN` | 上游 Bearer Token，只保存在服务端 |
+
+`npm run start:worker` 使用 Next.js 的 `@next/env` 加载 `.env`。加载规则与 Web 服务一致。进程环境变量优先于 `.env`。
+
+Worker 每 1000 毫秒轮询一次 `runOnce`。未启动 Worker 时，已保存任务保持待发送状态。
+
+收到 `SIGTERM` 或 `SIGINT` 后，Worker 停止轮询，等待当前请求结束，再退出进程。
+
+发送请求不使用自动重试。上游返回 409 或结果未知时，Worker 记录证据并标记人工核对状态。
+
+`npm run build` 在 Next.js 构建后编译 Worker。存在 `.next/standalone` 时，构建脚本将 Worker 产物复制到 `.next/standalone/maintenance-worker`。
+
+生产环境必须为 Web 服务与 Worker 提供同一个可持久化 SQLite 文件。仓库不包含该持久卷的部署配置。
+
 ## 架构说明
 
-前端通过服务端代理（`app/api/proxy/`）转发所有 API 请求到后端，确保凭据不会暴露到客户端。
+前端通过服务端代理（`app/api/proxy/`）转发所有后端 API 请求，确保凭据不会暴露到客户端。
 代理在转发前校验登录会话。修改类请求还校验 `Origin` 请求头。
+
+维护通知任务通过 `/api/console/announcements` 写入本地 SQLite 数据库。浏览器不直接调用上游维护通知接口。
+独立 Worker 领取本地任务后，由服务端发送请求并保存逐群证据。
 
 API 类型定义通过 OpenAPI 规范生成：
 
