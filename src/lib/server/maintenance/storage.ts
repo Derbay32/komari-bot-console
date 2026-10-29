@@ -5,7 +5,11 @@ import { createRequestId } from "../../http/audit";
 import {
   buildMaintenanceAggregate,
   MAINTENANCE_AUDIT_REASON,
+  MAINTENANCE_INTERRUPTED_REASON,
+  MAINTENANCE_MISSED_REASON,
+  MAINTENANCE_SCHEDULED_START_WINDOW_MS,
   MaintenanceConflictError,
+  MaintenanceInputError,
   type MaintenanceAttempt,
   type MaintenanceAttemptPhase,
   type MaintenanceAttemptTotals,
@@ -42,7 +46,7 @@ export function insertNoticeWithQueuedAttempt(
   database: DatabaseSync,
   input: MaintenanceCreateInput,
   submissionId: string,
-  now: number,
+  nowProvider: () => number,
 ) {
   const fingerprint = createInputFingerprint(input);
 
@@ -65,6 +69,15 @@ export function insertNoticeWithQueuedAttempt(
       database.exec("COMMIT");
 
       return { created: false, id: readString(existing, "id") };
+    }
+
+    const now = nowProvider();
+
+    if (
+      input.mode === "scheduled" &&
+      (input.plannedAt === null || input.plannedAt <= now)
+    ) {
+      throw new MaintenanceInputError("计划发送时间必须晚于当前时刻。");
     }
 
     const noticeId = randomUUID();
@@ -183,11 +196,12 @@ export type ClaimedMaintenanceAttempt = {
 
 export function claimQueuedAttempt(
   database: DatabaseSync,
-  now: number,
+  nowProvider: () => number,
 ): ClaimedMaintenanceAttempt | null {
   database.exec("BEGIN IMMEDIATE");
 
   try {
+    const now = nowProvider();
     const row = database
       .prepare(
         `SELECT a.id, a.notice_id, a.request_id, a.audit_reason,
@@ -195,13 +209,22 @@ export function claimQueuedAttempt(
          FROM maintenance_attempts AS a
          JOIN maintenance_notices AS n ON n.id = a.notice_id
          WHERE a.phase = 'queued'
-           AND n.mode = 'immediate'
-           AND n.planned_at IS NULL
-           AND n.status IN ('upcoming', 'sent')
+           AND (
+             (n.mode = 'immediate'
+              AND n.planned_at IS NULL
+              AND n.status IN ('upcoming', 'sent'))
+             OR (n.mode = 'scheduled'
+                 AND a.attempt_number = 1
+                 AND n.status = 'upcoming'
+                 AND n.planned_at IS NOT NULL
+                 AND n.planned_at <= ?
+                 AND ? <= n.planned_at + ?)
+             OR (a.attempt_number > 1 AND n.status = 'sent')
+           )
          ORDER BY a.created_at ASC, a.attempt_number ASC
          LIMIT 1`,
       )
-      .get();
+      .get(now, now, MAINTENANCE_SCHEDULED_START_WINDOW_MS);
 
     if (!row) {
       database.exec("COMMIT");
@@ -251,6 +274,176 @@ export function claimQueuedAttempt(
       requestId: readString(row, "request_id"),
       targetGroupIds: parseNumberArray(readString(row, "target_group_ids")),
     };
+  } catch (error) {
+    rollbackQuietly(database);
+    throw error;
+  }
+}
+
+export function recoverExpiredRunningAttempts(
+  database: DatabaseSync,
+  nowProvider: () => number,
+) {
+  database.exec("BEGIN IMMEDIATE");
+
+  try {
+    const now = nowProvider();
+    const rows = database
+      .prepare(
+        `SELECT id, notice_id, owner_token, target_group_ids
+         FROM maintenance_attempts
+         WHERE phase = 'running'
+           AND lease_expires_at IS NOT NULL
+           AND lease_expires_at <= ?
+         ORDER BY created_at ASC, attempt_number ASC`,
+      )
+      .all(now);
+    const recover = database.prepare(
+      `UPDATE maintenance_attempts
+       SET phase = 'completed',
+           executed = 1,
+           ended_at = ?,
+           request_error = ?,
+           remaining_seconds = NULL,
+           requires_reconciliation = 1,
+           owner_token = NULL,
+           lease_expires_at = NULL,
+           updated_at = ?
+       WHERE id = ?
+         AND phase = 'running'
+         AND owner_token IS ?
+         AND lease_expires_at IS NOT NULL
+         AND lease_expires_at <= ?`,
+    );
+    const updateNotice = database.prepare(
+      `UPDATE maintenance_notices
+       SET ended_at = ?,
+           updated_at = ?,
+           version = version + 1,
+           last_executed_attempt_ended_at = ?
+       WHERE id = ?`,
+    );
+    let recovered = 0;
+
+    for (const row of rows) {
+      const attemptId = readString(row, "id");
+      const noticeId = readString(row, "notice_id");
+      const ownerToken = readNullableString(row, "owner_token");
+      const changes = recover.run(
+        now,
+        MAINTENANCE_INTERRUPTED_REASON,
+        now,
+        attemptId,
+        ownerToken,
+        now,
+      );
+
+      if (Number(changes.changes) !== 1) {
+        continue;
+      }
+
+      const targetGroupIds = parseNumberArray(
+        readString(row, "target_group_ids"),
+      );
+
+      database
+        .prepare("DELETE FROM maintenance_attempt_results WHERE attempt_id = ?")
+        .run(attemptId);
+      insertAttemptResults(
+        database,
+        attemptId,
+        targetGroupIds.map((groupId) => ({
+          botId: null,
+          error: null,
+          errorCode: null,
+          groupId,
+          outcome: "unknown",
+          reason: MAINTENANCE_INTERRUPTED_REASON,
+          requiresReconciliation: true,
+        })),
+      );
+      updateNotice.run(now, now, now, noticeId);
+      recovered += 1;
+    }
+
+    database.exec("COMMIT");
+
+    return recovered;
+  } catch (error) {
+    rollbackQuietly(database);
+    throw error;
+  }
+}
+
+export function expireMissedScheduledAttempts(
+  database: DatabaseSync,
+  nowProvider: () => number,
+) {
+  database.exec("BEGIN IMMEDIATE");
+
+  try {
+    const now = nowProvider();
+    const rows = database
+      .prepare(
+        `SELECT a.id, a.notice_id
+         FROM maintenance_attempts AS a
+         JOIN maintenance_notices AS n ON n.id = a.notice_id
+         WHERE a.phase = 'queued'
+           AND a.attempt_number = 1
+           AND n.mode = 'scheduled'
+           AND n.status = 'upcoming'
+           AND n.planned_at IS NOT NULL
+           AND ? > n.planned_at + ?
+         ORDER BY n.planned_at ASC, a.created_at ASC`,
+      )
+      .all(now, MAINTENANCE_SCHEDULED_START_WINDOW_MS);
+    const closeAttempt = database.prepare(
+      `UPDATE maintenance_attempts
+       SET phase = 'completed',
+           executed = 0,
+           ended_at = ?,
+           request_error = ?,
+           remaining_seconds = NULL,
+           requires_reconciliation = 0,
+           owner_token = NULL,
+           lease_expires_at = NULL,
+           updated_at = ?
+       WHERE id = ? AND phase = 'queued'`,
+    );
+    const markNoticeMissed = database.prepare(
+      `UPDATE maintenance_notices
+       SET status = 'missed',
+           ended_at = ?,
+           updated_at = ?,
+           version = version + 1
+       WHERE id = ? AND status = 'upcoming'`,
+    );
+    let missed = 0;
+
+    for (const row of rows) {
+      const attemptId = readString(row, "id");
+      const noticeId = readString(row, "notice_id");
+      const changes = closeAttempt.run(
+        now,
+        MAINTENANCE_MISSED_REASON,
+        now,
+        attemptId,
+      );
+
+      if (Number(changes.changes) !== 1) {
+        continue;
+      }
+
+      database
+        .prepare("DELETE FROM maintenance_attempt_results WHERE attempt_id = ?")
+        .run(attemptId);
+      markNoticeMissed.run(now, now, noticeId);
+      missed += 1;
+    }
+
+    database.exec("COMMIT");
+
+    return missed;
   } catch (error) {
     rollbackQuietly(database);
     throw error;
@@ -341,26 +534,7 @@ export function completeAttempt(
       .prepare("DELETE FROM maintenance_attempt_results WHERE attempt_id = ?")
       .run(completion.attemptId);
 
-    const insertResult = database.prepare(
-      `INSERT INTO maintenance_attempt_results
-        (attempt_id, group_id, position, outcome, reason, error_code, error,
-         bot_id, requires_reconciliation)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    );
-
-    completion.results.forEach((result, position) => {
-      insertResult.run(
-        completion.attemptId,
-        result.groupId,
-        position,
-        result.outcome,
-        result.reason,
-        result.errorCode,
-        result.error,
-        result.botId,
-        result.requiresReconciliation ? 1 : 0,
-      );
-    });
+    insertAttemptResults(database, completion.attemptId, completion.results);
 
     database
       .prepare(
@@ -385,6 +559,33 @@ export function completeAttempt(
     rollbackQuietly(database);
     throw error;
   }
+}
+
+function insertAttemptResults(
+  database: DatabaseSync,
+  attemptId: string,
+  results: readonly MaintenanceTargetEvidence[],
+) {
+  const insertResult = database.prepare(
+    `INSERT INTO maintenance_attempt_results
+      (attempt_id, group_id, position, outcome, reason, error_code, error,
+       bot_id, requires_reconciliation)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  );
+
+  results.forEach((result, position) => {
+    insertResult.run(
+      attemptId,
+      result.groupId,
+      position,
+      result.outcome,
+      result.reason,
+      result.errorCode,
+      result.error,
+      result.botId,
+      result.requiresReconciliation ? 1 : 0,
+    );
+  });
 }
 
 function readNoticeRecord(

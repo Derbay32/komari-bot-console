@@ -199,6 +199,96 @@ describe("maintenance worker CLI", () => {
     }
   });
 
+  it("recovers a killed in-flight worker as unknown without replaying the request", async () => {
+    temp = await createTempDatabase("worker-recovery-");
+    let releaseRequest;
+    const gate = new Promise((resolve) => {
+      releaseRequest = resolve;
+    });
+    upstream = await startFakeUpstream(async (request) => {
+      await gate;
+
+      return { body: successfulResponse(readJsonBody(request).group_ids) };
+    });
+    const maintenance = createWorkerTestService(temp.databasePath);
+    const created = await maintenance.create(
+      maintenanceInput({ groupIds: [921, 922] }),
+      "worker-recovery-key",
+    );
+    const child = startWorker({
+      databasePath: temp.databasePath,
+      origin: upstream.origin,
+    });
+
+    try {
+      await waitFor(() => upstream.requests.length === 1, 10_000);
+      const requestId = upstream.requests[0].headers["x-request-id"];
+      assert.match(requestId, /^maint-[0-9a-f-]{36}$/);
+
+      child.kill("SIGKILL");
+      const killed = await waitForExit(child, 5_000);
+      assert.equal(killed.signal, "SIGKILL");
+      const killedAt = Date.now();
+
+      const restarted = startWorker({
+        databasePath: temp.databasePath,
+        origin: upstream.origin,
+      });
+
+      try {
+        await waitFor(async () => {
+          const detail = await maintenance.get(created.notice.id);
+          return detail?.attempts[0]?.phase === "completed";
+        }, 45_000);
+
+        const recovered = await maintenance.get(created.notice.id);
+        assert.ok(recovered);
+        assert.equal(recovered.status, "sent");
+        assert.equal(recovered.activity, null);
+        assert.equal(recovered.attempts.length, 1);
+        assert.equal(recovered.attempts[0].requestId, requestId);
+        assert.equal(recovered.attempts[0].phase, "completed");
+        assert.equal(recovered.attempts[0].executed, true);
+        assert.equal(recovered.attempts[0].requiresReconciliation, true);
+        assert.match(recovered.attempts[0].requestError, /中断/);
+        assert.ok(recovered.attempts[0].endedAt >= killedAt);
+        assert.ok(recovered.attempts[0].endedAt <= Date.now());
+        assert.equal(
+          recovered.lastExecutedAttemptEndedAt,
+          recovered.attempts[0].endedAt,
+        );
+        assert.deepEqual(
+          recovered.attempts[0].results.map((result) => [
+            result.groupId,
+            result.outcome,
+          ]),
+          [
+            [921, "unknown"],
+            [922, "unknown"],
+          ],
+        );
+
+        await new Promise((resolve) => setTimeout(resolve, 1_500));
+        assert.equal(upstream.requests.length, 1);
+        const afterRestart = await maintenance.get(created.notice.id);
+        assert.equal(afterRestart?.attempts.length, 1);
+        assert.equal(afterRestart?.attempts[0].requestId, requestId);
+
+        const exit = await terminateWorker(restarted);
+        assert.equal(exit.code, 0, exit.stderr);
+      } finally {
+        await forceStop(restarted);
+      }
+    } finally {
+      releaseRequest();
+      await forceStop(child);
+      await upstream.close();
+      upstream = null;
+      await temp.cleanup();
+      temp = null;
+    }
+  });
+
   it("loads escaped .env values with the same expansion as Next", async () => {
     temp = await createTempDatabase("worker-env-escaped-");
     upstream = await startFakeUpstream((request) => ({

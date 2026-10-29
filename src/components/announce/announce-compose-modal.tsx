@@ -7,6 +7,7 @@ import {
   Form,
   Input,
   Modal,
+  Radio,
   Select,
   Space,
   Tag,
@@ -27,8 +28,11 @@ import {
   MaintenanceInputError,
   MAINTENANCE_GROUP_LIMIT,
   MAINTENANCE_TEXT_BUDGETS,
+  formatMaintenanceTimestamp,
   parseMaintenanceCreateInput,
+  parseMaintenanceShanghaiDateTimeLocal,
   type MaintenanceCreateInput,
+  type MaintenanceMode,
 } from "@/lib/maintenance";
 
 type ComposeFormValues = {
@@ -36,12 +40,16 @@ type ComposeFormValues = {
   content: string;
   maintenanceTime: string;
   groupIds: number[];
+  mode: MaintenanceMode;
+  plannedAt: string;
 };
 
 const INITIAL_VALUES: ComposeFormValues = {
   content: "",
   groupIds: [],
   maintenanceTime: "",
+  mode: "immediate",
+  plannedAt: "",
   title: "",
 };
 
@@ -61,6 +69,10 @@ export function AnnounceComposeModal({
   const watchedTitle = Form.useWatch("title", form) ?? "";
   const watchedContent = Form.useWatch("content", form) ?? "";
   const watchedMaintenanceTime = Form.useWatch("maintenanceTime", form) ?? "";
+  const watchedModeValue = Form.useWatch("mode", form);
+  const watchedMode: MaintenanceMode =
+    watchedModeValue === "scheduled" ? "scheduled" : "immediate";
+  const watchedPlannedAt = Form.useWatch("plannedAt", form) ?? "";
   const watchedGroupIdsValue = Form.useWatch("groupIds", form);
   const watchedGroupIds = useMemo(
     () => watchedGroupIdsValue ?? [],
@@ -100,6 +112,25 @@ export function AnnounceComposeModal({
       })
       .join("、");
   }, [groupNameMap, watchedGroupIds]);
+  const plannedAtPreview = useMemo(() => {
+    if (watchedMode !== "scheduled") {
+      return "未设置";
+    }
+
+    const rawValue = watchedPlannedAt.trim();
+
+    if (!rawValue) {
+      return "尚未填写";
+    }
+
+    try {
+      return `${formatMaintenanceTimestamp(
+        parseMaintenanceShanghaiDateTimeLocal(rawValue),
+      )}（UTC+8）`;
+    } catch {
+      return "时间格式无效";
+    }
+  }, [watchedMode, watchedPlannedAt]);
 
   const handleValuesChange = useCallback(() => {
     setSubmissionId(null);
@@ -115,10 +146,17 @@ export function AnnounceComposeModal({
     let input: MaintenanceCreateInput;
 
     try {
+      const mode: MaintenanceMode =
+        values.mode === "scheduled" ? "scheduled" : "immediate";
+      const plannedAt =
+        mode === "scheduled"
+          ? parseMaintenanceShanghaiDateTimeLocal(values.plannedAt ?? "")
+          : null;
+
       input = parseMaintenanceCreateInput({
         ...values,
-        mode: "immediate",
-        plannedAt: null,
+        mode,
+        plannedAt,
       });
     } catch (error) {
       observePromise(
@@ -192,7 +230,7 @@ export function AnnounceComposeModal({
         showIcon
         type="info"
         title="提交只保存本地任务，由独立 Worker 执行。"
-        description="关闭弹窗、取消或按 Esc 都不会清空草稿；修改草稿会重置提交标识。"
+        description="关闭弹窗、取消或按 Esc 都不会清空草稿；修改草稿会重置提交标识。定时发送按 Asia/Shanghai（UTC+8）计划时间执行。"
       />
 
       {groupsQuery.isError ? (
@@ -278,12 +316,25 @@ export function AnnounceComposeModal({
             />
           </Form.Item>
 
-          <Form.Item label="发送方式">
-            <Tag color="processing">立即发送</Tag>
-            <Typography.Text type="secondary">
-              定时发送将在后续版本开放。
-            </Typography.Text>
+          <Form.Item name="mode" label="发送方式">
+            <Radio.Group>
+              <Radio value="immediate">立即发送</Radio>
+              <Radio value="scheduled">定时发送</Radio>
+            </Radio.Group>
           </Form.Item>
+
+          {watchedMode === "scheduled" ? (
+            <Form.Item
+              name="plannedAt"
+              label="计划发送时间（Asia/Shanghai，UTC+8）"
+              extra="按 UTC+8 解释日历时间，与浏览器所在时区无关。"
+              rules={[
+                { required: true, message: "请选择计划发送时间" },
+              ]}
+            >
+              <Input type="datetime-local" />
+            </Form.Item>
+          ) : null}
         </Form>
 
         <section className={styles.previewPanel} aria-label="消息预览">
@@ -308,7 +359,13 @@ export function AnnounceComposeModal({
               label="维护时间"
               value={watchedMaintenanceTime.trim() || "尚未填写"}
             />
-            <SummaryRow label="发送方式" value="立即发送" />
+            <SummaryRow
+              label="发送方式"
+              value={watchedMode === "scheduled" ? "定时发送" : "立即发送"}
+            />
+            {watchedMode === "scheduled" ? (
+              <SummaryRow label="计划发送" value={plannedAtPreview} />
+            ) : null}
             <SummaryRow
               label="目标群"
               value={

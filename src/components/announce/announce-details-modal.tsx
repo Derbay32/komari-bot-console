@@ -130,6 +130,9 @@ function NoticeDetails({
             </Tag>
             {notice.activity ? <Tag color="processing">执行中</Tag> : null}
             <Tag>{notice.mode === "immediate" ? "立即发送" : "定时发送"}</Tag>
+            {notice.status === "missed" ? (
+              <Tag color="warning">未执行</Tag>
+            ) : null}
             {notice.aggregate.requiresReconciliation ? (
               <Tag color="warning">需人工核对</Tag>
             ) : null}
@@ -139,6 +142,15 @@ function NoticeDetails({
           版本 {notice.version}
         </Typography.Text>
       </div>
+
+      {notice.status === "missed" ? (
+        <Alert
+          showIcon
+          type="warning"
+          title="已错过计划发送时间"
+          description="该任务未执行发送，不会自动补发。"
+        />
+      ) : null}
 
       {notice.aggregate.requiresReconciliation ? (
         <Alert
@@ -164,6 +176,16 @@ function NoticeDetails({
             key: "mode",
             label: "发送方式",
           },
+          ...(notice.mode === "scheduled" && notice.plannedAt !== null
+            ? [
+                {
+                  children: `${formatMaintenanceTimestamp(notice.plannedAt)}（UTC+8）`,
+                  key: "plannedAt",
+                  label:
+                    notice.status === "missed" ? "原计划发送" : "计划发送",
+                },
+              ]
+            : []),
           {
             children: formatMaintenanceTimestamp(notice.createdAt),
             key: "createdAt",
@@ -209,7 +231,9 @@ function NoticeDetails({
           <Typography.Text strong>原始目标群</Typography.Text>
           <Tag>{notice.groupIds.length} 个</Tag>
           <Typography.Text type="secondary">
-            {describeMaintenanceAggregate(notice.aggregate)}
+            {notice.status === "missed"
+              ? "未执行，无逐群发送结果"
+              : describeMaintenanceAggregate(notice.aggregate)}
           </Typography.Text>
         </Space>
         <div className={styles.targetGrid}>
@@ -220,8 +244,16 @@ function NoticeDetails({
                 <span className={styles.targetId}>{target.groupId}</span>
               </div>
               <Space size={4} wrap>
-                <Tag color={outcomeColor(target.outcome)}>
-                  {getMaintenanceOutcomeLabel(target.outcome)}
+                <Tag
+                  color={
+                    notice.status === "missed"
+                      ? "default"
+                      : outcomeColor(target.outcome)
+                  }
+                >
+                  {notice.status === "missed"
+                    ? "未执行"
+                    : getMaintenanceOutcomeLabel(target.outcome)}
                 </Tag>
                 {target.retryBlocked ? (
                   <Tag color="warning">需人工核对</Tag>

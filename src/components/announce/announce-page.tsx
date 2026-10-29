@@ -175,8 +175,16 @@ function NoticeList({
             <span className={styles.noticeMeta}>
               维护时间：{notice.maintenanceTime}
             </span>
+            {notice.mode === "scheduled" && notice.plannedAt !== null ? (
+              <span className={styles.noticeMeta}>
+                {notice.status === "missed" ? "原计划发送：" : "计划发送："}
+                {formatMaintenanceTimestamp(notice.plannedAt)}（UTC+8）
+              </span>
+            ) : null}
             <span className={styles.noticeMeta}>
-              {describeMaintenanceAggregate(notice.aggregate)}
+              {notice.status === "missed"
+                ? "未执行，无逐群发送结果"
+                : describeMaintenanceAggregate(notice.aggregate)}
             </span>
             <span className={styles.noticeMeta}>
               目标群 {notice.groupIds.length} 个 · 创建于{" "}
@@ -203,6 +211,9 @@ function StatusTag({ notice }: { notice: MaintenanceNoticeSummary }) {
   return (
     <span className={styles.noticeTags}>
       <Tag color={color}>{label}</Tag>
+      {notice.status === "missed" ? (
+        <Tag color="warning">未执行</Tag>
+      ) : null}
       {notice.activity === "running" ? (
         <Tag color="processing">Worker 正在执行</Tag>
       ) : null}

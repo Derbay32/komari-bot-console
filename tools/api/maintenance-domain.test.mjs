@@ -148,13 +148,21 @@ describe("maintenance input validation", () => {
     }
   });
 
-  it("rejects scheduling at the public immediate-only boundary", () => {
+  it("validates scheduled shape without using the wall clock", () => {
+    const plannedAt = Date.now() - 60_000;
+    const scheduled = maintenance.parseMaintenanceCreateInput(
+      validInput({ mode: "scheduled", plannedAt }),
+    );
+
+    assert.equal(scheduled.mode, "scheduled");
+    assert.equal(scheduled.plannedAt, plannedAt);
+
     assert.throws(
       () =>
         maintenance.parseMaintenanceCreateInput(
-          validInput({ mode: "scheduled", plannedAt: Date.now() + 60_000 }),
+          validInput({ mode: "scheduled", plannedAt: null }),
         ),
-      { message: "当前仅支持立即发送。" },
+      { message: "定时发送必须提供有效的计划发送时间。" },
     );
     assert.throws(
       () =>
@@ -168,7 +176,7 @@ describe("maintenance input validation", () => {
         maintenance.parseMaintenanceCreateInput(
           validInput({ mode: "later" }),
         ),
-      { message: "当前仅支持立即发送。" },
+      { message: "发送方式必须是立即发送或定时发送。" },
     );
   });
 
