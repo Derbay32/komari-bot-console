@@ -63,11 +63,21 @@ export function ensureMaintenanceSchema(database: DatabaseSync) {
       PRIMARY KEY (attempt_id, group_id)
     );
 
+    CREATE TABLE IF NOT EXISTS maintenance_retry_submissions (
+      submission_key TEXT PRIMARY KEY NOT NULL,
+      notice_id TEXT NOT NULL REFERENCES maintenance_notices(id) ON DELETE CASCADE,
+      attempt_id TEXT NOT NULL REFERENCES maintenance_attempts(id) ON DELETE CASCADE,
+      fingerprint TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS maintenance_attempts_phase_idx
       ON maintenance_attempts (phase, created_at);
     CREATE INDEX IF NOT EXISTS maintenance_attempts_notice_idx
       ON maintenance_attempts (notice_id, attempt_number);
     CREATE INDEX IF NOT EXISTS maintenance_results_attempt_idx
       ON maintenance_attempt_results (attempt_id, position);
+    CREATE INDEX IF NOT EXISTS maintenance_retry_submissions_notice_idx
+      ON maintenance_retry_submissions (notice_id, created_at);
   `);
 }

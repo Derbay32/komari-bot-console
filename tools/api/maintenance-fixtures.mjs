@@ -108,11 +108,16 @@ export async function loadMaintenanceRoutes(modules) {
     "src/app/api/console/announcements/[id]/route.ts",
     routeImports,
   );
+  const retryRouteUrl = loadTypeScriptModule(
+    "src/app/api/console/announcements/[id]/retry/route.ts",
+    routeImports,
+  );
 
   return {
     detailRoute: await import(detailRouteUrl),
     listRoute: await import(listRouteUrl),
     loginRoute: await import(authModules.loginUrl),
+    retryRoute: await import(retryRouteUrl),
   };
 }
 

@@ -4,11 +4,15 @@ import {
   MAINTENANCE_MISSING_RESULT_REASON,
   MaintenanceInputError,
   parseMaintenanceCreateInput,
+  parseMaintenanceRetryInput,
   validateMaintenanceSubmissionId,
   type MaintenanceCreateInput,
   type MaintenanceCreateResult,
   type MaintenanceNotice,
   type MaintenanceNoticeSummary,
+  type MaintenanceRetryInput,
+  type MaintenanceRetryPreview,
+  type MaintenanceRetryResult,
   type MaintenanceRunResult,
   type MaintenanceService,
   type MaintenanceServiceOptions,
@@ -23,12 +27,14 @@ import {
 import {
   claimQueuedAttempt,
   completeAttempt,
+  enqueueRetry,
   expireMissedScheduledAttempts,
   insertNoticeWithQueuedAttempt,
   listNoticeSummaries,
   openMaintenanceDatabase,
   readNotice,
   readNoticeSummary,
+  readRetryPreview,
   recoverExpiredRunningAttempts,
   renewAttemptLease,
 } from "./storage";
@@ -90,6 +96,41 @@ export function createMaintenanceService(
 
       try {
         return readNotice(database, id);
+      } finally {
+        database.close();
+      }
+    },
+
+    async previewRetry(id) {
+      const database = openMaintenanceDatabase(databasePath);
+
+      try {
+        return readRetryPreview(database, id);
+      } finally {
+        database.close();
+      }
+    },
+
+    async retry(id, input, submissionId) {
+      const normalizedInput = parseMaintenanceRetryInput(input);
+      const normalizedSubmissionId =
+        validateMaintenanceSubmissionId(submissionId);
+      const database = openMaintenanceDatabase(databasePath);
+
+      try {
+        const enqueued = enqueueRetry(
+          database,
+          id,
+          normalizedInput,
+          normalizedSubmissionId,
+          now(),
+        );
+
+        return {
+          attemptId: enqueued.attemptId,
+          created: enqueued.created,
+          notice: readNoticeSummary(database, enqueued.noticeId),
+        };
       } finally {
         database.close();
       }
@@ -257,6 +298,9 @@ export type {
   MaintenanceCreateResult,
   MaintenanceNotice,
   MaintenanceNoticeSummary,
+  MaintenanceRetryInput,
+  MaintenanceRetryPreview,
+  MaintenanceRetryResult,
   MaintenanceRunResult,
   MaintenanceService,
   MaintenanceServiceOptions,
