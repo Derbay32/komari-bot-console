@@ -33,6 +33,7 @@ import {
 export function AnnouncePage() {
   const [composeOpen, setComposeOpen] = useState(false);
   const [viewingId, setViewingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const listQuery = useAnnouncementList();
   const notices = useMemo(
     () => listQuery.data?.notices ?? [],
@@ -126,9 +127,21 @@ export function AnnouncePage() {
         open={composeOpen}
         onClose={() => setComposeOpen(false)}
       />
+      {editingId !== null ? (
+        <AnnounceComposeModal
+          key={editingId}
+          open
+          editNoticeId={editingId}
+          onClose={() => setEditingId(null)}
+        />
+      ) : null}
       <AnnounceDetailsModal
         noticeId={viewingId}
         onClose={() => setViewingId(null)}
+        onEdit={(notice) => {
+          setViewingId(null);
+          setEditingId(notice.id);
+        }}
       />
     </Space>
   );
@@ -177,12 +190,19 @@ function NoticeList({
             </span>
             {notice.mode === "scheduled" && notice.plannedAt !== null ? (
               <span className={styles.noticeMeta}>
-                {notice.status === "missed" ? "原计划发送：" : "计划发送："}
+                {notice.status === "missed" || notice.status === "canceled"
+                  ? "原计划发送："
+                  : "计划发送："}
                 {formatMaintenanceTimestamp(notice.plannedAt)}（UTC+8）
               </span>
             ) : null}
+            {notice.status === "canceled" ? (
+              <span className={styles.noticeMeta}>
+                取消时间：{formatMaintenanceTimestamp(notice.endedAt)}
+              </span>
+            ) : null}
             <span className={styles.noticeMeta}>
-              {notice.status === "missed"
+              {notice.status === "missed" || notice.status === "canceled"
                 ? "未执行，无逐群发送结果"
                 : describeMaintenanceAggregate(notice.aggregate)}
             </span>
@@ -214,6 +234,7 @@ function StatusTag({ notice }: { notice: MaintenanceNoticeSummary }) {
       {notice.status === "missed" ? (
         <Tag color="warning">未执行</Tag>
       ) : null}
+      {notice.status === "canceled" ? <Tag>未执行</Tag> : null}
       {notice.activity === "running" ? (
         <Tag color="processing">Worker 正在执行</Tag>
       ) : null}

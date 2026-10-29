@@ -108,8 +108,13 @@ export async function loadMaintenanceRoutes(modules) {
     "src/app/api/console/announcements/[id]/route.ts",
     routeImports,
   );
+  const cancelRouteUrl = loadTypeScriptModule(
+    "src/app/api/console/announcements/[id]/cancel/route.ts",
+    routeImports,
+  );
 
   return {
+    cancelRoute: await import(cancelRouteUrl),
     detailRoute: await import(detailRouteUrl),
     listRoute: await import(listRouteUrl),
     loginRoute: await import(authModules.loginUrl),
