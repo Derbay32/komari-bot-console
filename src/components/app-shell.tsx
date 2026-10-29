@@ -106,6 +106,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const selectedKey = routeMap[pathname] ?? "overview";
+  const isAnnounceRoute = pathname === ANNOUNCE_ROUTE;
   const currentTheme =
     mounted && (theme === "light" || theme === "dark" || theme === "system")
       ? theme
@@ -230,9 +231,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             icon={<MenuOutlined />}
             className="console-mobile-menu-btn"
             onClick={() => setMobileNavOpen(true)}
-            aria-label="打开导航菜单"
+            aria-label={
+              isAnnounceRoute
+                ? "公告通知，打开导航菜单"
+                : "打开导航菜单"
+            }
             aria-expanded={isMobilePortrait && mobileNavOpen}
-          />
+            aria-haspopup={isAnnounceRoute ? "dialog" : undefined}
+          >
+            {isAnnounceRoute ? (
+              <span className="console-mobile-menu-btn__title">公告通知</span>
+            ) : null}
+          </Button>
           {children}
         </Content>
       </Layout>
