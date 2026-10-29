@@ -19,6 +19,7 @@ describe("announcement list view model", () => {
         attemptCount: 4,
         groupIds: [101, 202],
         id: "sent-1",
+        lastExecutedAttemptEndedAt: 5_500,
         outcomes: ["success", "failed"],
         startedAt: 5_000,
       }),
@@ -26,6 +27,7 @@ describe("announcement list view model", () => {
         attemptCount: 2,
         groupIds: [202],
         id: "sent-2",
+        lastExecutedAttemptEndedAt: 4_500,
         outcomes: ["success"],
         startedAt: 4_000,
       }),
@@ -53,12 +55,14 @@ describe("announcement list view model", () => {
       summary({
         groupIds: [101, 202],
         id: "shared",
+        lastExecutedAttemptEndedAt: 5_500,
         outcomes: ["success", "unknown"],
         startedAt: 5_000,
       }),
       summary({
         groupIds: [202],
         id: "second-group-only",
+        lastExecutedAttemptEndedAt: 4_500,
         outcomes: ["success"],
         startedAt: 4_000,
       }),
@@ -81,6 +85,7 @@ describe("announcement list view model", () => {
     const notice = summary({
       groupIds: [101, 202],
       id: "mixed",
+      lastExecutedAttemptEndedAt: 5_500,
       outcomes: ["success", "unknown"],
       startedAt: 5_000,
     });
@@ -111,6 +116,7 @@ describe("announcement list view model", () => {
     const notice = summary({
       groupIds,
       id: "eight-and-two",
+      lastExecutedAttemptEndedAt: 5_500,
       outcomes,
       startedAt: 5_000,
     });
@@ -153,6 +159,7 @@ describe("announcement list view model", () => {
     const unknown = summary({
       groupIds: [101],
       id: "delivery-unknown",
+      lastExecutedAttemptEndedAt: 5_500,
       outcomes: [
         {
           outcome: "unknown",
@@ -177,6 +184,7 @@ describe("announcement list view model", () => {
     const notice = summary({
       groupIds: [4_242],
       id: "orphan",
+      lastExecutedAttemptEndedAt: 5_500,
       outcomes: ["success"],
       startedAt: 5_000,
     });
@@ -213,6 +221,7 @@ describe("announcement list view model", () => {
       summary({
         createdAt: 1_000,
         id: "sent",
+        lastExecutedAttemptEndedAt: 5_500,
         outcomes: ["success"],
         plannedAt: 1_000,
         startedAt: 5_000,
@@ -284,6 +293,175 @@ describe("announcement list view model", () => {
     assert.equal(view.getAnnouncementStatusView(missed, "all").label, "已错过");
   });
 
+  it("shows the plan or creation time when a sent notice never executed", () => {
+    const scheduled = summary({
+      createdAt: 1_000,
+      groupIds: [101],
+      id: "scheduled-rate-limited",
+      outcomes: [
+        {
+          outcome: "unknown",
+          reason: "请求被限流（剩余冷却 30 秒）",
+          requiresReconciliation: false,
+        },
+      ],
+      plannedAt: 2_000,
+      startedAt: 3_000,
+    });
+    const scheduledTiming = view.getAnnouncementTimingView(scheduled);
+    assert.equal(scheduledTiming.label, "计划发送");
+    assert.equal(scheduledTiming.value, 2_000);
+    assert.equal(scheduledTiming.note, "实际发送：未执行");
+    assert.equal(scheduledTiming.plannedAt, null);
+
+    const immediate = summary({
+      createdAt: 4_000,
+      groupIds: [101],
+      id: "immediate-4xx",
+      outcomes: [
+        {
+          outcome: "unknown",
+          reason: "上游返回 422",
+          requiresReconciliation: false,
+        },
+      ],
+      plannedAt: null,
+      startedAt: 6_000,
+    });
+    const immediateTiming = view.getAnnouncementTimingView(immediate);
+    assert.equal(immediateTiming.label, "创建时间");
+    assert.equal(immediateTiming.value, 4_000);
+    assert.equal(immediateTiming.note, "实际发送：未执行");
+    assert.equal(immediateTiming.plannedAt, null);
+  });
+
+  it("keeps the first claim time while a sent attempt is still running", () => {
+    const running = summary({
+      activity: "running",
+      createdAt: 1_000,
+      id: "running-first-claim",
+      plannedAt: 2_000,
+      startedAt: 5_000,
+    });
+    const timing = view.getAnnouncementTimingView(running);
+    assert.equal(timing.label, "发送时间");
+    assert.equal(timing.value, 5_000);
+    assert.equal(timing.plannedAt, 2_000);
+    assert.equal(timing.note, null);
+
+    const executed = summary({
+      createdAt: 1_000,
+      endedAt: 4_500,
+      id: "executed-comparator",
+      lastExecutedAttemptEndedAt: 4_500,
+      plannedAt: 3_000,
+      startedAt: 4_000,
+    });
+
+    assert.deepEqual(
+      historyIds(buildModel([running, executed], { scope: "all" })),
+      ["running-first-claim", "executed-comparator"],
+    );
+  });
+
+  it("never sorts a sent notice by a later claim time without an executed attempt", () => {
+    const notices = [
+      summary({
+        createdAt: 1_000,
+        id: "claimed-later",
+        plannedAt: 2_000,
+        startedAt: 9_000,
+      }),
+      summary({
+        createdAt: 1_000,
+        endedAt: 6_500,
+        id: "executed",
+        lastExecutedAttemptEndedAt: 6_500,
+        plannedAt: 6_000,
+        startedAt: 6_000,
+      }),
+      summary({
+        createdAt: 1_000,
+        id: "planned-newest",
+        plannedAt: 7_000,
+        startedAt: 7_500,
+      }),
+    ];
+
+    assert.deepEqual(historyIds(buildModel(notices, { scope: "all" })), [
+      "planned-newest",
+      "executed",
+      "claimed-later",
+    ]);
+  });
+
+  it("keeps the first started time for executed sent records and ignores the retention anchor in sorting", () => {
+    const executed = summary({
+      createdAt: 1_000,
+      endedAt: 5_500,
+      id: "executed",
+      lastExecutedAttemptEndedAt: 8_000,
+      plannedAt: 4_000,
+      startedAt: 5_000,
+    });
+    const timing = view.getAnnouncementTimingView(executed);
+    assert.equal(timing.label, "发送时间");
+    assert.equal(timing.value, 5_000);
+    assert.equal(timing.plannedAt, 4_000);
+    assert.equal(timing.note, null);
+
+    const comparison = summary({
+      createdAt: 1_000,
+      endedAt: 6_500,
+      id: "comparison",
+      lastExecutedAttemptEndedAt: 6_500,
+      plannedAt: 6_000,
+      startedAt: 6_000,
+    });
+
+    assert.deepEqual(
+      historyIds(buildModel([executed, comparison], { scope: "all" })),
+      ["comparison", "executed"],
+    );
+  });
+
+  it("keeps canceled and missed timing views unchanged alongside sent records", () => {
+    const canceled = summary({
+      endedAt: 6_000,
+      id: "canceled",
+      plannedAt: 2_000,
+      status: "canceled",
+      updatedAt: 6_500,
+    });
+    const missed = summary({
+      id: "missed",
+      plannedAt: 7_000,
+      status: "missed",
+    });
+    const sent = summary({
+      id: "sent",
+      lastExecutedAttemptEndedAt: 5_500,
+      plannedAt: 1_000,
+      startedAt: 5_000,
+    });
+
+    assert.equal(view.getAnnouncementTimingView(canceled).label, "取消时间");
+    assert.equal(view.getAnnouncementTimingView(canceled).value, 6_000);
+    assert.equal(view.getAnnouncementTimingView(canceled).plannedAt, 2_000);
+    assert.equal(view.getAnnouncementTimingView(missed).label, "计划发送");
+    assert.equal(view.getAnnouncementTimingView(missed).value, 7_000);
+    assert.equal(view.getAnnouncementTimingView(missed).plannedAt, null);
+    assert.equal(
+      view.getAnnouncementTimingView(missed).note,
+      "实际发送：未执行",
+    );
+
+    assert.deepEqual(
+      historyIds(buildModel([canceled, missed, sent], { scope: "all" })),
+      ["missed", "sent", "canceled"],
+    );
+  });
+
   it("paginates each list independently before rendering and clamps shrinking data", () => {
     const upcoming = Array.from({ length: 12 }, (_value, index) =>
       summary({
@@ -297,6 +475,7 @@ describe("announcement list view model", () => {
       summary({
         groupIds: [101],
         id: `h${String(index + 1).padStart(2, "0")}`,
+        lastExecutedAttemptEndedAt: 9_500 - index,
         outcomes: ["success"],
         startedAt: 9_000 - index,
       }),
@@ -474,7 +653,7 @@ function summary(patch = {}) {
     endedAt: patch.endedAt ?? null,
     groupIds,
     id,
-    lastExecutedAttemptEndedAt: null,
+    lastExecutedAttemptEndedAt: patch.lastExecutedAttemptEndedAt ?? null,
     maintenanceTime: "2026-11-01 22:00 - 23:00",
     mode: patch.mode ?? (patch.plannedAt ? "scheduled" : "immediate"),
     plannedAt: patch.plannedAt ?? null,

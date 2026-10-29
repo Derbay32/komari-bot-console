@@ -264,7 +264,11 @@ function NoticeDetails({
                 notice.activity,
               )}
             </Tag>
-            {notice.activity ? <Tag color="processing">执行中</Tag> : null}
+            {notice.status === "sent" && notice.activity !== null ? (
+              <Tag color="processing">
+                {notice.activity === "running" ? "执行中" : "等待执行"}
+              </Tag>
+            ) : null}
             <Tag>{notice.mode === "immediate" ? "立即发送" : "定时发送"}</Tag>
             {notice.status === "missed" ? (
               <Tag color="warning">未执行</Tag>
@@ -459,9 +463,11 @@ function AttemptCard({
           <Tag color={phaseColor(attempt.phase)}>
             {phaseLabel(attempt.phase)}
           </Tag>
-          <Tag color={attempt.executed ? "blue" : "default"}>
-            {attempt.executed ? "已执行" : "未执行"}
-          </Tag>
+          {attempt.phase !== "running" ? (
+            <Tag color={attempt.executed ? "blue" : "default"}>
+              {attempt.executed ? "已执行" : "未执行"}
+            </Tag>
+          ) : null}
           {attempt.requiresReconciliation ? (
             <Tag color="warning">需人工核对</Tag>
           ) : null}

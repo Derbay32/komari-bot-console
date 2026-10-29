@@ -300,6 +300,30 @@ export function getAnnouncementTimingView(
         value: notice.plannedAt ?? notice.createdAt,
       };
     case "sent":
+      // Storage marks a notice "sent" when an attempt is claimed, before that
+      // attempt ends. A queued/running activity therefore still shows the first
+      // claim time as the send time. Only a terminal sent record without any
+      // completed executed attempt (for example an upstream 4xx/429 that never
+      // sent) falls back to its plan or creation time.
+      if (
+        notice.activity === null &&
+        notice.lastExecutedAttemptEndedAt === null
+      ) {
+        return notice.plannedAt !== null
+          ? {
+              label: "计划发送",
+              note: "实际发送：未执行",
+              plannedAt: null,
+              value: notice.plannedAt,
+            }
+          : {
+              label: "创建时间",
+              note: "实际发送：未执行",
+              plannedAt: null,
+              value: notice.createdAt,
+            };
+      }
+
       return {
         label: "发送时间",
         note: null,
@@ -321,9 +345,18 @@ function upcomingSortAt(notice: MaintenanceNoticeSummary): number {
 }
 
 function historySortAt(notice: MaintenanceNoticeSummary): number {
-  return notice.status === "sent"
-    ? (notice.startedAt ?? notice.plannedAt ?? notice.createdAt)
-    : (notice.plannedAt ?? notice.createdAt);
+  // A sent record keeps its first claim time while an attempt is active or
+  // after a completed executed attempt. Only a terminal sent record without a
+  // completed execution sorts by its plan (or creation) time. The executed
+  // attempt end anchor is retained for retention, never used as a sort key.
+  if (
+    notice.status === "sent" &&
+    (notice.activity !== null || notice.lastExecutedAttemptEndedAt !== null)
+  ) {
+    return notice.startedAt ?? notice.plannedAt ?? notice.createdAt;
+  }
+
+  return notice.plannedAt ?? notice.createdAt;
 }
 
 function compareUpcoming(
