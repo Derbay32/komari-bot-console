@@ -1,12 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { observePromise } from "@/lib/async";
-import { apiFetch, consoleFetch } from "@/lib/http/client";
+import { ApiError, apiFetch, consoleFetch } from "@/lib/http/client";
 import type {
+  MaintenanceCancelInput,
   MaintenanceCreateInput,
   MaintenanceNotice,
   MaintenanceNoticeSummary,
   MaintenanceRetryPreview,
+  MaintenanceUpdateInput,
 } from "@/lib/maintenance";
 import type { components } from "@/types/komari-api";
 
@@ -20,7 +22,7 @@ type AnnouncementDetailResponse = {
   notice: MaintenanceNotice;
 };
 
-type CreateAnnouncementResponse = {
+type AnnouncementMutationResponse = {
   notice: MaintenanceNoticeSummary;
 };
 
@@ -84,18 +86,13 @@ export function useCreateAnnouncement() {
       input: MaintenanceCreateInput;
       submissionId: string;
     }) =>
-      consoleFetch<CreateAnnouncementResponse>("/announcements", {
+      consoleFetch<AnnouncementMutationResponse>("/announcements", {
         body: input,
         headers: { "X-Request-ID": submissionId },
         method: "POST",
       }),
     onSuccess: () => {
-      observePromise(
-        queryClient.invalidateQueries({ queryKey: ["announce", "notices"] }),
-      );
-      observePromise(
-        queryClient.invalidateQueries({ queryKey: ["announce", "notice"] }),
-      );
+      invalidateAnnouncementQueries(queryClient);
     },
   });
 }
@@ -153,6 +150,78 @@ export function useRetryAnnouncement() {
       );
     },
   });
+}
+
+export function useUpdateAnnouncement() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      input,
+    }: {
+      id: string;
+      input: MaintenanceUpdateInput;
+    }) =>
+      consoleFetch<AnnouncementMutationResponse>(
+        `/announcements/${encodeURIComponent(id)}`,
+        { body: input, method: "PATCH" },
+      ),
+    onError: (error: Error) => {
+      invalidateOnConflict(queryClient, error);
+    },
+    onSuccess: () => {
+      invalidateAnnouncementQueries(queryClient);
+    },
+  });
+}
+
+export function useCancelAnnouncement() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      version,
+    }: {
+      id: string;
+      version: MaintenanceCancelInput["version"];
+    }) =>
+      consoleFetch<AnnouncementMutationResponse>(
+        `/announcements/${encodeURIComponent(id)}/cancel`,
+        { body: { version }, method: "POST" },
+      ),
+    onError: (error: Error) => {
+      invalidateOnConflict(queryClient, error);
+    },
+    onSuccess: () => {
+      invalidateAnnouncementQueries(queryClient);
+    },
+  });
+}
+
+type AnnouncementQueryClient = ReturnType<typeof useQueryClient>;
+
+function invalidateAnnouncementQueries(queryClient: AnnouncementQueryClient) {
+  observePromise(
+    queryClient.invalidateQueries({ queryKey: ["announce", "notices"] }),
+  );
+  observePromise(
+    queryClient.invalidateQueries({ queryKey: ["announce", "notice"] }),
+  );
+}
+
+/**
+ * A rejected version means the displayed state is stale. Refresh list and
+ * detail so the next interaction starts from the server's current state.
+ */
+function invalidateOnConflict(
+  queryClient: AnnouncementQueryClient,
+  error: Error,
+) {
+  if (error instanceof ApiError && error.status === 409) {
+    invalidateAnnouncementQueries(queryClient);
+  }
 }
 
 function hasActiveAttempt(data: AnnouncementListResponse | undefined) {

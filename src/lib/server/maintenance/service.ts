@@ -3,9 +3,12 @@ import path from "node:path";
 import {
   MAINTENANCE_MISSING_RESULT_REASON,
   MaintenanceInputError,
+  parseMaintenanceCancelInput,
   parseMaintenanceCreateInput,
   parseMaintenanceRetryInput,
+  parseMaintenanceUpdateInput,
   validateMaintenanceSubmissionId,
+  type MaintenanceCancelInput,
   type MaintenanceCreateInput,
   type MaintenanceCreateResult,
   type MaintenanceNotice,
@@ -17,6 +20,7 @@ import {
   type MaintenanceService,
   type MaintenanceServiceOptions,
   type MaintenanceTargetEvidence,
+  type MaintenanceUpdateInput,
   type MaintenanceUpstreamConfig,
   type MaintenanceUpstreamProvider,
 } from "../../maintenance";
@@ -25,6 +29,7 @@ import {
   MAINTENANCE_LEASE_MS,
 } from "./schema";
 import {
+  cancelQueuedNotice,
   claimQueuedAttempt,
   completeAttempt,
   enqueueRetry,
@@ -37,6 +42,7 @@ import {
   readRetryPreview,
   recoverExpiredRunningAttempts,
   renewAttemptLease,
+  updateQueuedNotice,
 } from "./storage";
 import {
   dispatchMaintenanceRequest,
@@ -86,6 +92,33 @@ export function createMaintenanceService(
 
       try {
         return sortNotices(listNoticeSummaries(database));
+      } finally {
+        database.close();
+      }
+    },
+
+    async update(id, input) {
+      const normalizedInput = parseMaintenanceUpdateInput(input);
+      const database = openMaintenanceDatabase(databasePath);
+
+      try {
+        return updateQueuedNotice(database, id, normalizedInput, now);
+      } finally {
+        database.close();
+      }
+    },
+
+    async cancel(id, input) {
+      const normalizedInput = parseMaintenanceCancelInput(input);
+      const database = openMaintenanceDatabase(databasePath);
+
+      try {
+        return cancelQueuedNotice(
+          database,
+          id,
+          normalizedInput.version,
+          now,
+        );
       } finally {
         database.close();
       }
@@ -294,6 +327,7 @@ function uncertainTransportOutcome(
 }
 
 export type {
+  MaintenanceCancelInput,
   MaintenanceCreateInput,
   MaintenanceCreateResult,
   MaintenanceNotice,
@@ -304,6 +338,7 @@ export type {
   MaintenanceRunResult,
   MaintenanceService,
   MaintenanceServiceOptions,
+  MaintenanceUpdateInput,
 };
 
 export { MaintenanceInputError };

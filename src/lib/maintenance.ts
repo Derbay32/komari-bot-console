@@ -9,6 +9,7 @@ export const MAINTENANCE_AUDIT_REASON = "发送维护通知";
 export const MAINTENANCE_INTERRUPTED_REASON = "执行进程中断，结果未知";
 export const MAINTENANCE_MISSED_REASON = "已错过计划发送时间，未调用上游发送";
 export const MAINTENANCE_RETRY_AUDIT_REASON = "手动重试维护通知";
+export const MAINTENANCE_CANCELED_REASON = "通知已取消，未调用上游发送";
 export const MAINTENANCE_MISSING_RESULT_REASON = "上游未返回结果";
 
 export const MAINTENANCE_SCHEDULED_START_WINDOW_MS = 60_000;
@@ -51,6 +52,19 @@ export type MaintenanceCreateInput = {
   groupIds: number[];
   mode: MaintenanceMode;
   plannedAt: number | null;
+};
+
+export type MaintenanceUpdateInput = MaintenanceCreateInput & {
+  version: number;
+};
+
+export type MaintenanceCancelInput = {
+  version: number;
+};
+
+export type MaintenanceConflictPayload = {
+  message: string;
+  currentNotice: MaintenanceNoticeSummary;
 };
 
 export type MaintenanceUpstreamRequestBody = {
@@ -196,6 +210,14 @@ export type MaintenanceService = {
     input: MaintenanceCreateInput,
     submissionId: string,
   ): Promise<MaintenanceCreateResult>;
+  update(
+    id: string,
+    input: MaintenanceUpdateInput,
+  ): Promise<MaintenanceNoticeSummary | null>;
+  cancel(
+    id: string,
+    input: MaintenanceCancelInput,
+  ): Promise<MaintenanceNoticeSummary | null>;
   list(): Promise<MaintenanceNoticeSummary[]>;
   get(id: string): Promise<MaintenanceNotice | null>;
   previewRetry(id: string): Promise<MaintenanceRetryPreview | null>;
@@ -225,9 +247,15 @@ export class MaintenanceInputError extends Error {
 }
 
 export class MaintenanceConflictError extends Error {
-  constructor(message: string) {
+  readonly currentNotice: MaintenanceNoticeSummary | undefined;
+
+  constructor(
+    message: string,
+    currentNotice?: MaintenanceNoticeSummary,
+  ) {
     super(message);
     this.name = "MaintenanceConflictError";
+    this.currentNotice = currentNotice;
   }
 }
 
@@ -304,13 +332,78 @@ export function validateMaintenanceSubmissionId(value: unknown): string {
   return value;
 }
 
+/**
+ * Validate an edit payload through the same field, text-budget, group, and
+ * scheduling rules as creation. The caller-supplied version is the optimistic
+ * concurrency token; unknown fields stay unknown so creation rejects them.
+ */
+export function parseMaintenanceUpdateInput(
+  value: unknown,
+): MaintenanceUpdateInput {
+  if (!isRecord(value)) {
+    throw new MaintenanceInputError("请求体必须是 JSON 对象。");
+  }
+
+  const version = readMaintenanceVersion(value);
+  const formValues: Record<string, unknown> = {};
+
+  for (const [key, field] of Object.entries(value)) {
+    if (key !== "version") {
+      formValues[key] = field;
+    }
+  }
+
+  return { ...parseMaintenanceCreateInput(formValues), version };
+}
+
+export function parseMaintenanceCancelInput(
+  value: unknown,
+): MaintenanceCancelInput {
+  if (!isRecord(value)) {
+    throw new MaintenanceInputError("请求体必须是 JSON 对象。");
+  }
+
+  for (const key of Object.keys(value)) {
+    if (key !== "version") {
+      throw new MaintenanceInputError(`请求包含未知字段：${key}。`);
+    }
+  }
+
+  return { version: readMaintenanceVersion(value) };
+}
+
+/**
+ * Read the 409 payload returned by the update and cancel endpoints. Returns
+ * null when the response does not carry the server's current notice state.
+ */
+export function readMaintenanceConflictPayload(
+  payload: unknown,
+): MaintenanceConflictPayload | null {
+  if (!isRecord(payload)) {
+    return null;
+  }
+
+  const message = payload.message;
+  const currentNotice = payload.currentNotice;
+
+  if (typeof message !== "string" || !isMaintenanceNoticeSummary(currentNotice)) {
+    return null;
+  }
+
+  return { currentNotice, message };
+}
+
 const SHANGHAI_DATE_TIME_LOCAL_PATTERN =
-  /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/;
+  /^(\d{4,6})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/;
 const SHANGHAI_OFFSET_MS = 8 * 60 * 60 * 1000;
+const MS_PER_MINUTE = 60 * 1000;
+const MS_PER_HOUR = 60 * MS_PER_MINUTE;
 
 /**
  * Convert the calendar components of a datetime-local input as Asia/Shanghai
  * wall time. The result never depends on the browser or server time zone.
+ * Extended years are validated at calendar midnight so that a wall time later
+ * than the Date range's UTC side can still produce a representable epoch.
  */
 export function parseMaintenanceShanghaiDateTimeLocal(value: string): number {
   const match = SHANGHAI_DATE_TIME_LOCAL_PATTERN.exec(value);
@@ -340,19 +433,27 @@ export function parseMaintenanceShanghaiDateTimeLocal(value: string): number {
     throw new MaintenanceInputError("计划发送时间是无效的日期时间。");
   }
 
-  const epoch =
-    Date.UTC(year, month - 1, day, hour, minute, second) -
-    SHANGHAI_OFFSET_MS;
-  const local = new Date(epoch + SHANGHAI_OFFSET_MS);
+  const midnight = Date.UTC(year, month - 1, day);
+  const calendar = new Date(midnight);
 
   if (
-    local.getUTCFullYear() !== year ||
-    local.getUTCMonth() !== month - 1 ||
-    local.getUTCDate() !== day ||
-    local.getUTCHours() !== hour ||
-    local.getUTCMinutes() !== minute ||
-    local.getUTCSeconds() !== second
+    !Number.isFinite(midnight) ||
+    calendar.getUTCFullYear() !== year ||
+    calendar.getUTCMonth() !== month - 1 ||
+    calendar.getUTCDate() !== day
   ) {
+    throw new MaintenanceInputError("计划发送时间是无效的日期时间。");
+  }
+
+  const epoch =
+    midnight +
+    hour * MS_PER_HOUR +
+    minute * MS_PER_MINUTE +
+    second * 1000 -
+    SHANGHAI_OFFSET_MS;
+  const instant = new Date(epoch);
+
+  if (!Number.isFinite(epoch) || Number.isNaN(instant.getTime())) {
     throw new MaintenanceInputError("计划发送时间是无效的日期时间。");
   }
 
@@ -578,6 +679,51 @@ export function formatMaintenanceTimestamp(value: number | null): string {
     timeZone: "Asia/Shanghai",
   }).format(new Date(value));
 }
+
+/**
+ * Format an epoch as a datetime-local value in Asia/Shanghai wall time. The
+ * result never depends on the browser or server time zone. Seconds are only
+ * included when needed so minute-precision plans round-trip unchanged.
+ *
+ * Calendar fields come from Intl with an explicit Asia/Shanghai time zone. Do
+ * not derive them by adding the UTC offset to the epoch: that overflows the
+ * representable Date range at Date.MAX, while Intl renders it correctly.
+ */
+export function formatMaintenanceShanghaiDateTimeLocal(value: number): string {
+  const parts = SHANGHAI_DATE_TIME_LOCAL_FORMATTER.formatToParts(value);
+  const year = readMaintenanceFormatterPart(parts, "year").padStart(4, "0");
+  const month = readMaintenanceFormatterPart(parts, "month");
+  const day = readMaintenanceFormatterPart(parts, "day");
+  const hour = readMaintenanceFormatterPart(parts, "hour");
+  const minute = readMaintenanceFormatterPart(parts, "minute");
+  const second = readMaintenanceFormatterPart(parts, "second");
+  const milliseconds = readMaintenanceFormatterPart(
+    parts,
+    "fractionalSecond",
+  );
+  const datePart = `${year}-${month}-${day}`;
+  const timePart = `${hour}:${minute}`;
+
+  if (second === "00" && milliseconds === "000") {
+    return `${datePart}T${timePart}`;
+  }
+
+  return `${datePart}T${timePart}:${second}`;
+}
+
+const SHANGHAI_DATE_TIME_LOCAL_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  calendar: "gregory",
+  day: "2-digit",
+  fractionalSecondDigits: 3,
+  hour: "2-digit",
+  hourCycle: "h23",
+  minute: "2-digit",
+  month: "2-digit",
+  numberingSystem: "latn",
+  second: "2-digit",
+  timeZone: "Asia/Shanghai",
+  year: "numeric",
+});
 
 export function getMaintenanceNoticeStatusLabel(
   status: MaintenanceNoticeStatus,
@@ -835,6 +981,50 @@ function buildRejectionDiagnostic(
   }
 
   return message;
+}
+
+function readMaintenanceFormatterPart(
+  parts: Intl.DateTimeFormatPart[],
+  type: Intl.DateTimeFormatPartTypes,
+) {
+  const part = parts.find((candidate) => candidate.type === type);
+
+  if (!part) {
+    throw new Error("计划发送时间无法按 Asia/Shanghai 格式化。");
+  }
+
+  return part.value;
+}
+
+function readMaintenanceVersion(value: Record<string, unknown>) {
+  const version = value.version;
+
+  if (
+    typeof version !== "number" ||
+    !Number.isSafeInteger(version) ||
+    version <= 0
+  ) {
+    throw new MaintenanceInputError("通知版本号必须是正的安全整数。");
+  }
+
+  return version;
+}
+
+function isMaintenanceNoticeSummary(
+  value: unknown,
+): value is MaintenanceNoticeSummary {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === "string" &&
+    typeof value.status === "string" &&
+    typeof value.version === "number" &&
+    typeof value.attemptCount === "number" &&
+    Array.isArray(value.groupIds) &&
+    isRecord(value.aggregate)
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

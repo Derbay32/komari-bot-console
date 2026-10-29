@@ -56,6 +56,7 @@ export function AnnouncePage() {
     reduceAnnouncementListState,
     INITIAL_ANNOUNCEMENT_LIST_STATE,
   );
+  const [editingId, setEditingId] = useState<string | null>(null);
   const listQuery = useAnnouncementList();
   const groupsQuery = useGroupList();
   const notices = useMemo(
@@ -364,9 +365,21 @@ export function AnnouncePage() {
         open={composeOpen}
         onClose={() => setComposeOpen(false)}
       />
+      {editingId !== null ? (
+        <AnnounceComposeModal
+          key={editingId}
+          open
+          editNoticeId={editingId}
+          onClose={() => setEditingId(null)}
+        />
+      ) : null}
       <AnnounceDetailsModal
         noticeId={viewingId}
         onClose={() => setViewingId(null)}
+        onEdit={(notice) => {
+          setViewingId(null);
+          setEditingId(notice.id);
+        }}
       />
     </div>
   );

@@ -391,6 +391,105 @@ describe("maintenance notice aggregate rules", () => {
   });
 });
 
+describe("maintenance Shanghai datetime-local formatting", () => {
+  it("formats the representable Date limit without overflowing the UTC offset", () => {
+    const dateMax = 8_640_000_000_000_000;
+
+    assert.equal(
+      maintenance.formatMaintenanceShanghaiDateTimeLocal(dateMax),
+      "275760-09-13T08:00",
+    );
+    assert.match(
+      maintenance.formatMaintenanceTimestamp(dateMax),
+      /275760年9月13日\s+08:00:00/,
+    );
+  });
+
+  it("keeps the existing minute, second, and millisecond display policy", () => {
+    const minute = maintenance.parseMaintenanceShanghaiDateTimeLocal(
+      "2026-11-01T22:30",
+    );
+    const second = maintenance.parseMaintenanceShanghaiDateTimeLocal(
+      "2026-11-01T22:30:45",
+    );
+
+    assert.equal(
+      maintenance.formatMaintenanceShanghaiDateTimeLocal(minute),
+      "2026-11-01T22:30",
+    );
+    assert.equal(
+      maintenance.formatMaintenanceShanghaiDateTimeLocal(second),
+      "2026-11-01T22:30:45",
+    );
+    assert.equal(
+      maintenance.formatMaintenanceShanghaiDateTimeLocal(second + 123),
+      "2026-11-01T22:30:45",
+    );
+    assert.equal(
+      maintenance.formatMaintenanceShanghaiDateTimeLocal(minute + 123),
+      "2026-11-01T22:30:00",
+    );
+  });
+
+  it("formats Shanghai wall time independently of the host time zone", () => {
+    assert.equal(
+      maintenance.formatMaintenanceShanghaiDateTimeLocal(
+        Date.UTC(2026, 10, 1, 16, 30),
+      ),
+      "2026-11-02T00:30",
+    );
+  });
+});
+
+describe("maintenance extended Shanghai year parsing", () => {
+  it("parses the representable Date limit and the preceding extended-year wall time", () => {
+    assert.equal(
+      maintenance.parseMaintenanceShanghaiDateTimeLocal(
+        "275760-09-13T08:00",
+      ),
+      8_640_000_000_000_000,
+    );
+    assert.equal(
+      maintenance.parseMaintenanceShanghaiDateTimeLocal(
+        "275760-09-13T07:59",
+      ),
+      8_639_999_999_940_000,
+    );
+  });
+
+  it("keeps normal minute and second parsing unchanged", () => {
+    assert.equal(
+      maintenance.parseMaintenanceShanghaiDateTimeLocal(
+        "2026-11-01T22:30",
+      ),
+      1_793_543_400_000,
+    );
+    assert.equal(
+      maintenance.parseMaintenanceShanghaiDateTimeLocal(
+        "2026-11-01T22:30:45",
+      ),
+      1_793_543_445_000,
+    );
+  });
+
+  it("rejects invalid extended-year calendars and values beyond the Date limit", () => {
+    for (const value of [
+      "275760-02-30T10:00",
+      "275760-09-13T08:00:01",
+      "275760-09-14T00:00",
+    ]) {
+      assert.throws(
+        () => maintenance.parseMaintenanceShanghaiDateTimeLocal(value),
+        (error) => {
+          assert.equal(error.name, "MaintenanceInputError");
+          return true;
+        },
+        value,
+      );
+    }
+  });
+});
+
 function validInput(patch = {}) {
   return {
     content: "维护内容",

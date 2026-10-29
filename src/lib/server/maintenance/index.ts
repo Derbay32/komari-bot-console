@@ -8,6 +8,8 @@ export type {
   MaintenanceAttempt,
   MaintenanceAttemptPhase,
   MaintenanceAttemptTotals,
+  MaintenanceCancelInput,
+  MaintenanceConflictPayload,
   MaintenanceCreateInput,
   MaintenanceCreateResult,
   MaintenanceMode,
@@ -23,6 +25,7 @@ export type {
   MaintenanceService,
   MaintenanceServiceOptions,
   MaintenanceTargetEvidence,
+  MaintenanceUpdateInput,
   MaintenanceUpstreamConfig,
   MaintenanceUpstreamRequestBody,
 } from "../../maintenance";

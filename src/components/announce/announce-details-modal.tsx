@@ -3,10 +3,12 @@
 import { ReloadOutlined } from "@ant-design/icons";
 import {
   Alert,
+  App,
   Button,
   Descriptions,
   Empty,
   Modal,
+  Popconfirm,
   Space,
   Spin,
   Tag,
@@ -17,9 +19,12 @@ import type * as React from "react";
 
 import styles from "@/components/announce/announce.module.css";
 import { AnnounceRetryModal } from "@/components/announce/announce-retry-modal";
+import { observePromise } from "@/lib/async";
+import { ApiError } from "@/lib/http/client";
 import { getRequestErrorMessage } from "@/lib/http/error";
 import {
   useAnnouncementDetail,
+  useCancelAnnouncement,
   useGroupList,
 } from "@/lib/hooks/use-announce";
 import {
@@ -27,22 +32,36 @@ import {
   formatMaintenanceTimestamp,
   getMaintenanceNoticeStatusLabel,
   getMaintenanceOutcomeLabel,
+  readMaintenanceConflictPayload,
   type MaintenanceAttempt,
   type MaintenanceAttemptPhase,
   type MaintenanceNotice,
+  type MaintenanceNoticeSummary,
   type MaintenanceOutcome,
 } from "@/lib/maintenance";
+
+type CancelConflict = {
+  message: string;
+  currentNotice: MaintenanceNoticeSummary | null;
+};
 
 export function AnnounceDetailsModal({
   noticeId,
   onClose,
+  onEdit,
 }: {
   noticeId: string | null;
   onClose: () => void;
+  onEdit: (notice: MaintenanceNotice) => void;
 }) {
+  const { message: messageApi } = App.useApp();
   const detailQuery = useAnnouncementDetail(noticeId);
   const groupsQuery = useGroupList();
   const [retryOpen, setRetryOpen] = useState(false);
+  const cancelMutation = useCancelAnnouncement();
+  const [cancelConflict, setCancelConflict] = useState<CancelConflict | null>(
+    null,
+  );
   const groupNameMap = useMemo(
     () =>
       new Map(
@@ -54,17 +73,58 @@ export function AnnounceDetailsModal({
   );
   const notice = detailQuery.data?.notice ?? null;
   const handleClose = useCallback(() => {
+    setCancelConflict(null);
     setRetryOpen(false);
     onClose();
   }, [onClose]);
 
+  const handleCancel = useCallback(async () => {
+    if (!notice || cancelMutation.isPending) {
+      return;
+    }
+
+    try {
+      await cancelMutation.mutateAsync({
+        id: notice.id,
+        version: notice.version,
+      });
+      setCancelConflict(null);
+      observePromise(messageApi.success("通知已取消。"));
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 409) {
+        const conflict = readMaintenanceConflictPayload(error.payload);
+
+        setCancelConflict(
+          conflict ?? {
+            currentNotice: null,
+            message: getRequestErrorMessage(
+              error,
+              "取消维护通知失败。",
+            ),
+          },
+        );
+        observePromise(
+          messageApi.error(
+            conflict?.message ?? "通知状态已变化，请刷新后重试。",
+          ),
+        );
+        return;
+      }
+
+      observePromise(
+        messageApi.error(
+          getRequestErrorMessage(error, "取消维护通知失败。"),
+        ),
+      );
+    }
+  }, [cancelMutation, messageApi, notice]);
   return (
     <>
       <Modal
         open={noticeId !== null}
         centered
         width={860}
-        title="通知详情（只读）"
+        title="通知详情"
         onCancel={handleClose}
         wrapProps={{
           onKeyDownCapture: (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -80,6 +140,32 @@ export function AnnounceDetailsModal({
         }}
         classNames={{ body: styles.modalBody }}
         footer={[
+          notice?.status === "upcoming" ? (
+            <Popconfirm
+              key="cancel"
+              title="取消这条维护通知？"
+              description="取消后不会发送，且无法恢复。"
+              okText="确认取消"
+              cancelText="返回"
+              onConfirm={handleCancel}
+            >
+              <Button danger loading={cancelMutation.isPending}>
+                取消通知
+              </Button>
+            </Popconfirm>
+          ) : null,
+          notice?.status === "upcoming" ? (
+            <Button
+              key="edit"
+              type="primary"
+              onClick={() => {
+                setCancelConflict(null);
+                onEdit(notice);
+              }}
+            >
+              编辑
+            </Button>
+          ) : null,
           notice?.status === "sent" ? (
             <Button
               key="retry"
@@ -113,6 +199,15 @@ export function AnnounceDetailsModal({
           />
         ) : null}
 
+        {cancelConflict ? (
+          <Alert
+            showIcon
+            type="warning"
+            title="通知状态已变化"
+            description={describeCancelConflict(cancelConflict)}
+          />
+        ) : null}
+
         {!detailQuery.isPending && !detailQuery.isError && !notice ? (
           <Empty description="通知不存在" />
         ) : null}
@@ -139,6 +234,9 @@ function NoticeDetails({
   notice: MaintenanceNotice;
   groupNameMap: Map<number, string>;
 }) {
+  const unexecuted =
+    notice.status === "missed" || notice.status === "canceled";
+
   return (
     <Space orientation="vertical" size={16} style={{ display: "flex" }}>
       <div className={styles.detailHeader}>
@@ -158,6 +256,7 @@ function NoticeDetails({
             {notice.status === "missed" ? (
               <Tag color="warning">未执行</Tag>
             ) : null}
+            {notice.status === "canceled" ? <Tag>未执行</Tag> : null}
             {notice.aggregate.requiresReconciliation ? (
               <Tag color="warning">需人工核对</Tag>
             ) : null}
@@ -174,6 +273,15 @@ function NoticeDetails({
           type="warning"
           title="已错过计划发送时间"
           description="该任务未执行发送，不会自动补发。"
+        />
+      ) : null}
+
+      {notice.status === "canceled" ? (
+        <Alert
+          showIcon
+          type="warning"
+          title="该通知已取消"
+          description="未执行发送，没有逐群发送结果，不会自动补发。"
         />
       ) : null}
 
@@ -207,7 +315,10 @@ function NoticeDetails({
                   children: `${formatMaintenanceTimestamp(notice.plannedAt)}（UTC+8）`,
                   key: "plannedAt",
                   label:
-                    notice.status === "missed" ? "原计划发送" : "计划发送",
+                    notice.status === "missed" ||
+                    notice.status === "canceled"
+                      ? "原计划发送"
+                      : "计划发送",
                 },
               ]
             : []),
@@ -229,7 +340,7 @@ function NoticeDetails({
           {
             children: formatMaintenanceTimestamp(notice.endedAt),
             key: "endedAt",
-            label: "最近结束",
+            label: notice.status === "canceled" ? "取消时间" : "最近结束",
           },
           {
             children: formatMaintenanceTimestamp(
@@ -256,7 +367,7 @@ function NoticeDetails({
           <Typography.Text strong>原始目标群</Typography.Text>
           <Tag>{notice.groupIds.length} 个</Tag>
           <Typography.Text type="secondary">
-            {notice.status === "missed"
+            {unexecuted
               ? "未执行，无逐群发送结果"
               : describeMaintenanceAggregate(notice.aggregate)}
           </Typography.Text>
@@ -271,12 +382,12 @@ function NoticeDetails({
               <Space size={4} wrap>
                 <Tag
                   color={
-                    notice.status === "missed"
+                    unexecuted
                       ? "default"
                       : outcomeColor(target.outcome)
                   }
                 >
-                  {notice.status === "missed"
+                  {unexecuted
                     ? "未执行"
                     : getMaintenanceOutcomeLabel(target.outcome)}
                 </Tag>
@@ -416,6 +527,19 @@ function AttemptCard({
       )}
     </div>
   );
+}
+
+function describeCancelConflict(conflict: CancelConflict) {
+  if (!conflict.currentNotice) {
+    return `${conflict.message} 请刷新后重试。`;
+  }
+
+  const statusLabel = getMaintenanceNoticeStatusLabel(
+    conflict.currentNotice.status,
+    conflict.currentNotice.activity,
+  );
+
+  return `${conflict.message} 当前状态：${statusLabel}，版本 ${conflict.currentNotice.version}。列表与详情已刷新。`;
 }
 
 function phaseLabel(phase: MaintenanceAttemptPhase) {

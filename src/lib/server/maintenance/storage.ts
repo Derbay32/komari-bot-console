@@ -5,6 +5,7 @@ import { createRequestId } from "../../http/audit";
 import {
   buildMaintenanceAggregate,
   MAINTENANCE_AUDIT_REASON,
+  MAINTENANCE_CANCELED_REASON,
   MAINTENANCE_INTERRUPTED_REASON,
   MAINTENANCE_MISSED_REASON,
   MAINTENANCE_RETRY_AUDIT_REASON,
@@ -23,6 +24,7 @@ import {
   type MaintenanceRetryInput,
   type MaintenanceRetryPreview,
   type MaintenanceTargetEvidence,
+  type MaintenanceUpdateInput,
   type MaintenanceUpstreamRequestBody,
 } from "../../maintenance";
 import { openConsoleDatabase } from "../database";
@@ -416,6 +418,233 @@ function hasSameOrderedGroupIds(
     left.length === right.length &&
     left.every((groupId, index) => groupId === right[index])
   );
+}
+
+/**
+ * Replace an unclaimed notice's editable fields and the queued attempt's
+ * target snapshot in one write transaction. The submission receipt, request
+ * id, attempt identity, and audit reason stay intact; the version is the
+ * optimistic concurrency token.
+ */
+export function updateQueuedNotice(
+  database: DatabaseSync,
+  id: string,
+  input: MaintenanceUpdateInput,
+  nowProvider: () => number,
+): MaintenanceNoticeSummary | null {
+  database.exec("BEGIN IMMEDIATE");
+
+  try {
+    const current = readNoticeRecordForWrite(database, id);
+
+    if (!current) {
+      database.exec("COMMIT");
+      return null;
+    }
+
+    assertNoticeEditable(current, input.version, "编辑");
+
+    const now = nowProvider();
+
+    if (
+      input.mode === "scheduled" &&
+      (input.plannedAt === null || input.plannedAt <= now)
+    ) {
+      throw new MaintenanceInputError("计划发送时间必须晚于当前时刻。");
+    }
+
+    const groupIdsJson = JSON.stringify(input.groupIds);
+    const requestBody = createUpstreamRequestBody(input);
+    const noticeChanges = database
+      .prepare(
+        `UPDATE maintenance_notices
+         SET title = ?,
+             content = ?,
+             maintenance_time = ?,
+             target_group_ids = ?,
+             mode = ?,
+             planned_at = ?,
+             version = version + 1,
+             updated_at = ?
+         WHERE id = ? AND version = ?`,
+      )
+      .run(
+        input.title,
+        input.content,
+        input.maintenanceTime,
+        groupIdsJson,
+        input.mode,
+        input.plannedAt,
+        now,
+        id,
+        input.version,
+      );
+
+    if (Number(noticeChanges.changes) !== 1) {
+      throw new MaintenanceConflictError(
+        "通知已被更新，请刷新后重试。",
+        current.summary,
+      );
+    }
+
+    const attemptChanges = database
+      .prepare(
+        `UPDATE maintenance_attempts
+         SET body_json = ?,
+             target_group_ids = ?,
+             updated_at = ?
+         WHERE notice_id = ? AND attempt_number = 1 AND phase = 'queued'`,
+      )
+      .run(JSON.stringify(requestBody), groupIdsJson, now, id);
+
+    if (Number(attemptChanges.changes) !== 1) {
+      throw new MaintenanceConflictError(
+        "当前状态不允许编辑该通知。",
+        current.summary,
+      );
+    }
+
+    const summary = readNoticeSummaryRow(database, id);
+    database.exec("COMMIT");
+
+    return summary;
+  } catch (error) {
+    rollbackQuietly(database);
+    throw error;
+  }
+}
+
+/**
+ * Cancel an unclaimed notice in one write transaction. The original plan and
+ * target snapshot remain for history; the queued attempt is closed without
+ * results and never touches the upstream.
+ */
+export function cancelQueuedNotice(
+  database: DatabaseSync,
+  id: string,
+  version: number,
+  nowProvider: () => number,
+): MaintenanceNoticeSummary | null {
+  database.exec("BEGIN IMMEDIATE");
+
+  try {
+    const current = readNoticeRecordForWrite(database, id);
+
+    if (!current) {
+      database.exec("COMMIT");
+      return null;
+    }
+
+    assertNoticeEditable(current, version, "取消");
+
+    const now = nowProvider();
+    const attempt = current.attempts[0];
+    const noticeChanges = database
+      .prepare(
+        `UPDATE maintenance_notices
+         SET status = 'canceled',
+             ended_at = ?,
+             updated_at = ?,
+             version = version + 1
+         WHERE id = ? AND version = ? AND status = 'upcoming'`,
+      )
+      .run(now, now, id, version);
+
+    if (Number(noticeChanges.changes) !== 1 || !attempt) {
+      throw new MaintenanceConflictError(
+        "当前状态不允许取消该通知。",
+        current.summary,
+      );
+    }
+
+    const attemptChanges = database
+      .prepare(
+        `UPDATE maintenance_attempts
+         SET phase = 'completed',
+             executed = 0,
+             ended_at = ?,
+             request_error = ?,
+             remaining_seconds = NULL,
+             requires_reconciliation = 0,
+             owner_token = NULL,
+             lease_expires_at = NULL,
+             updated_at = ?
+         WHERE id = ? AND phase = 'queued'`,
+      )
+      .run(now, MAINTENANCE_CANCELED_REASON, now, attempt.id);
+
+    if (Number(attemptChanges.changes) !== 1) {
+      throw new MaintenanceConflictError(
+        "当前状态不允许取消该通知。",
+        current.summary,
+      );
+    }
+
+    database
+      .prepare("DELETE FROM maintenance_attempt_results WHERE attempt_id = ?")
+      .run(attempt.id);
+
+    const summary = readNoticeSummaryRow(database, id);
+    database.exec("COMMIT");
+
+    return summary;
+  } catch (error) {
+    rollbackQuietly(database);
+    throw error;
+  }
+}
+
+function readNoticeRecordForWrite(database: DatabaseSync, id: string) {
+  const row = database
+    .prepare("SELECT * FROM maintenance_notices WHERE id = ?")
+    .get(id);
+
+  if (!row) {
+    return null;
+  }
+
+  return readNoticeRecord(database, row);
+}
+
+function readNoticeSummaryRow(database: DatabaseSync, id: string) {
+  const row = database
+    .prepare("SELECT * FROM maintenance_notices WHERE id = ?")
+    .get(id);
+
+  if (!row) {
+    throw new Error("维护通知记录不存在。");
+  }
+
+  return readNoticeRecord(database, row).summary;
+}
+
+function assertNoticeEditable(
+  record: ReturnType<typeof readNoticeRecord>,
+  expectedVersion: number,
+  action: string,
+) {
+  if (record.summary.version !== expectedVersion) {
+    throw new MaintenanceConflictError(
+      "通知已被更新，请刷新后重试。",
+      record.summary,
+    );
+  }
+
+  const [attempt] = record.attempts;
+  const editable =
+    record.summary.status === "upcoming" &&
+    record.summary.startedAt === null &&
+    record.attempts.length === 1 &&
+    attempt?.number === 1 &&
+    attempt.phase === "queued" &&
+    attempt.startedAt === null;
+
+  if (!editable) {
+    throw new MaintenanceConflictError(
+      `当前状态不允许${action}该通知。`,
+      record.summary,
+    );
+  }
 }
 
 export type ClaimedMaintenanceAttempt = {
