@@ -37,6 +37,7 @@ import {
   insertNoticeWithQueuedAttempt,
   listNoticeSummaries,
   openMaintenanceDatabase,
+  purgeExpiredNoticeHistory,
   readNotice,
   readNoticeSummary,
   readRetryPreview,
@@ -177,6 +178,7 @@ export function createMaintenanceService(
       try {
         recoverExpiredRunningAttempts(database, now);
         expireMissedScheduledAttempts(database, now);
+        purgeExpiredNoticeHistory(database, now);
         claimed = claimQueuedAttempt(database, now);
       } catch (error) {
         database.close();

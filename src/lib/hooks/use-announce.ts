@@ -59,19 +59,45 @@ export function useAnnouncementList() {
   });
 }
 
+/**
+ * Poll every open detail so a notice cleaned up by the worker becomes a
+ * known 404 without waiting for the user to reopen it. A 404 stops polling
+ * and refreshes the list; other failures keep the project retry policy.
+ */
 export function useAnnouncementDetail(id: string | null) {
+  const queryClient = useQueryClient();
+
   return useQuery({
     enabled: Boolean(id),
     queryKey: ["announce", "notice", id],
-    queryFn: () =>
-      consoleFetch<AnnouncementDetailResponse>(
-        `/announcements/${encodeURIComponent(id ?? "")}`,
-      ),
-    refetchInterval: (query) =>
-      query.state.data?.notice.activity
-        ? ACTIVE_ATTEMPT_POLL_INTERVAL_MS
-        : false,
+    queryFn: async () => {
+      try {
+        return await consoleFetch<AnnouncementDetailResponse>(
+          `/announcements/${encodeURIComponent(id ?? "")}`,
+        );
+      } catch (error) {
+        if (isNotFoundError(error)) {
+          observePromise(
+            queryClient.invalidateQueries({
+              queryKey: ["announce", "notices"],
+            }),
+          );
+        }
+
+        throw error;
+      }
+    },
+    refetchInterval: (query) => {
+      if (!id || isNotFoundError(query.state.error)) {
+        return false;
+      }
+
+      return ACTIVE_ATTEMPT_POLL_INTERVAL_MS;
+    },
     refetchIntervalInBackground: false,
+    refetchOnMount: "always",
+    retry: (failureCount, error) =>
+      isNotFoundError(error) ? false : failureCount < 1,
   });
 }
 
@@ -226,4 +252,8 @@ function invalidateOnConflict(
 
 function hasActiveAttempt(data: AnnouncementListResponse | undefined) {
   return data?.notices.some((notice) => notice.activity !== null) ?? false;
+}
+
+function isNotFoundError(error: unknown) {
+  return error instanceof ApiError && error.status === 404;
 }

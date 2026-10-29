@@ -34,6 +34,7 @@ import {
 } from "./schema";
 
 const CONFLICT_MESSAGE = "提交标识已被不同的通知内容使用。";
+const NOTICE_HISTORY_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 const RETRY_SUBMISSION_CONFLICT_MESSAGE =
   "重试提交标识已被不同的重试请求使用。";
 const RETRY_VERSION_CONFLICT_MESSAGE =
@@ -907,6 +908,44 @@ export function expireMissedScheduledAttempts(
     database.exec("COMMIT");
 
     return missed;
+  } catch (error) {
+    rollbackQuietly(database);
+    throw error;
+  }
+}
+
+/**
+ * Delete terminal notice history older than the retention window. The clock
+ * is read inside the write transaction so a waiting cleanup decides from the
+ * state and time observed after it acquires the lock. Attempts, results, and
+ * retry submission receipts are removed by the existing cascades.
+ */
+export function purgeExpiredNoticeHistory(
+  database: DatabaseSync,
+  nowProvider: () => number,
+) {
+  database.exec("BEGIN IMMEDIATE");
+
+  try {
+    const cutoff = nowProvider() - NOTICE_HISTORY_RETENTION_MS;
+    const result = database
+      .prepare(
+        `DELETE FROM maintenance_notices
+         WHERE status IN ('sent', 'missed', 'canceled')
+           AND COALESCE(last_executed_attempt_ended_at, ended_at) IS NOT NULL
+           AND COALESCE(last_executed_attempt_ended_at, ended_at) <= ?
+           AND NOT EXISTS (
+             SELECT 1
+             FROM maintenance_attempts
+             WHERE notice_id = maintenance_notices.id
+               AND phase IN ('queued', 'running')
+           )`,
+      )
+      .run(cutoff);
+
+    database.exec("COMMIT");
+
+    return Number(result.changes);
   } catch (error) {
     rollbackQuietly(database);
     throw error;
