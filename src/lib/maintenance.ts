@@ -6,7 +6,11 @@
  */
 
 export const MAINTENANCE_AUDIT_REASON = "发送维护通知";
+export const MAINTENANCE_INTERRUPTED_REASON = "执行进程中断，结果未知";
+export const MAINTENANCE_MISSED_REASON = "已错过计划发送时间，未调用上游发送";
 export const MAINTENANCE_MISSING_RESULT_REASON = "上游未返回结果";
+
+export const MAINTENANCE_SCHEDULED_START_WINDOW_MS = 60_000;
 
 export const MAINTENANCE_UPSTREAM_PATH = "/api/v2/komari-announce/maintenance";
 
@@ -242,13 +246,8 @@ export function parseMaintenanceCreateInput(
   );
   const normalizedContent = normalizeRequiredText("正文", content, "content");
 
-  if (value.mode !== "immediate") {
-    throw new MaintenanceInputError("当前仅支持立即发送。");
-  }
-
-  if (value.plannedAt !== null) {
-    throw new MaintenanceInputError("立即发送的通知不能设置计划时间。");
-  }
+  const mode = readMaintenanceMode(value.mode);
+  const plannedAt = readPlannedAt(mode, value.plannedAt);
 
   const groupIds = normalizeGroupIds(value.groupIds);
 
@@ -256,8 +255,8 @@ export function parseMaintenanceCreateInput(
     content: normalizedContent,
     groupIds,
     maintenanceTime: normalizedMaintenanceTime,
-    mode: "immediate",
-    plannedAt: null,
+    mode,
+    plannedAt,
     title: normalizedTitle,
   };
 }
@@ -268,6 +267,61 @@ export function validateMaintenanceSubmissionId(value: unknown): string {
   }
 
   return value;
+}
+
+const SHANGHAI_DATE_TIME_LOCAL_PATTERN =
+  /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/;
+const SHANGHAI_OFFSET_MS = 8 * 60 * 60 * 1000;
+
+/**
+ * Convert the calendar components of a datetime-local input as Asia/Shanghai
+ * wall time. The result never depends on the browser or server time zone.
+ */
+export function parseMaintenanceShanghaiDateTimeLocal(value: string): number {
+  const match = SHANGHAI_DATE_TIME_LOCAL_PATTERN.exec(value);
+
+  if (!match) {
+    throw new MaintenanceInputError(
+      "计划发送时间格式应为 YYYY-MM-DDTHH:mm。",
+    );
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const hour = Number(match[4]);
+  const minute = Number(match[5]);
+  const second = match[6] ? Number(match[6]) : 0;
+
+  if (
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 31 ||
+    hour > 23 ||
+    minute > 59 ||
+    second > 59
+  ) {
+    throw new MaintenanceInputError("计划发送时间是无效的日期时间。");
+  }
+
+  const epoch =
+    Date.UTC(year, month - 1, day, hour, minute, second) -
+    SHANGHAI_OFFSET_MS;
+  const local = new Date(epoch + SHANGHAI_OFFSET_MS);
+
+  if (
+    local.getUTCFullYear() !== year ||
+    local.getUTCMonth() !== month - 1 ||
+    local.getUTCDate() !== day ||
+    local.getUTCHours() !== hour ||
+    local.getUTCMinutes() !== minute ||
+    local.getUTCSeconds() !== second
+  ) {
+    throw new MaintenanceInputError("计划发送时间是无效的日期时间。");
+  }
+
+  return epoch;
 }
 
 export function estimateMaintenanceTokens(text: string): number {
@@ -551,6 +605,39 @@ function readStringField(
   }
 
   return field;
+}
+
+function readMaintenanceMode(value: unknown): MaintenanceMode {
+  if (value === "immediate" || value === "scheduled") {
+    return value;
+  }
+
+  throw new MaintenanceInputError("发送方式必须是立即发送或定时发送。");
+}
+
+function readPlannedAt(mode: MaintenanceMode, value: unknown) {
+  if (mode === "immediate") {
+    if (value !== null) {
+      throw new MaintenanceInputError("立即发送的通知不能设置计划时间。");
+    }
+
+    return null;
+  }
+
+  if (
+    typeof value !== "number" ||
+    !Number.isSafeInteger(value) ||
+    value <= 0 ||
+    !isRepresentableTimestamp(value)
+  ) {
+    throw new MaintenanceInputError("定时发送必须提供有效的计划发送时间。");
+  }
+
+  return value;
+}
+
+function isRepresentableTimestamp(value: number) {
+  return Number.isFinite(new Date(value).getTime());
 }
 
 function normalizeRequiredText(

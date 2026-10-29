@@ -23,11 +23,13 @@ import {
 import {
   claimQueuedAttempt,
   completeAttempt,
+  expireMissedScheduledAttempts,
   insertNoticeWithQueuedAttempt,
   listNoticeSummaries,
   openMaintenanceDatabase,
   readNotice,
   readNoticeSummary,
+  recoverExpiredRunningAttempts,
   renewAttemptLease,
 } from "./storage";
 import {
@@ -61,7 +63,7 @@ export function createMaintenanceService(
           database,
           normalizedInput,
           normalizedSubmissionId,
-          now(),
+          now,
         );
 
         return {
@@ -99,7 +101,9 @@ export function createMaintenanceService(
       let claimed;
 
       try {
-        claimed = claimQueuedAttempt(database, now());
+        recoverExpiredRunningAttempts(database, now);
+        expireMissedScheduledAttempts(database, now);
+        claimed = claimQueuedAttempt(database, now);
       } catch (error) {
         database.close();
         throw error;

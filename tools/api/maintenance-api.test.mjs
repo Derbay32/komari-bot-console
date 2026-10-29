@@ -114,6 +114,63 @@ describe("console announcement routes", () => {
     assert.deepEqual(detailPayload.notice.attempts[0].targetGroupIds, [101, 202]);
   });
 
+  it("accepts a future scheduled task and rejects an equal-now plan", async () => {
+    const cookie = await loginCookie();
+    const plannedAt = Date.now() + 10 * 60_000;
+    const response = await callList("POST", {
+      body: JSON.stringify(
+        maintenanceInput({ mode: "scheduled", plannedAt }),
+      ),
+      cookie,
+      headers: { "x-request-id": "api-scheduled-create-key" },
+      origin: TEST_ORIGIN,
+    });
+
+    assert.equal(response.status, 201);
+    const payload = await response.json();
+    assert.equal(payload.notice.mode, "scheduled");
+    assert.equal(payload.notice.plannedAt, plannedAt);
+    assert.equal(payload.notice.status, "upcoming");
+    assert.equal(payload.notice.maintenanceTime, "2026-11-01 22:00 - 23:00");
+
+    const list = await callList("GET", { cookie });
+    const listPayload = await list.json();
+    assert.equal(listPayload.notices.length, 1);
+    assert.equal(listPayload.notices[0].plannedAt, plannedAt);
+
+    const equalNow = await callList("POST", {
+      body: JSON.stringify(
+        maintenanceInput({ mode: "scheduled", plannedAt: Date.now() }),
+      ),
+      cookie,
+      headers: { "x-request-id": "api-scheduled-equal-now-key" },
+      origin: TEST_ORIGIN,
+    });
+    assert.equal(equalNow.status, 400);
+    assert.match((await equalNow.json()).message, /计划发送时间/);
+
+    const after = await callList("GET", { cookie });
+    assert.equal((await after.json()).notices.length, 1);
+  });
+
+  it("accepts the representable Date limit as a future planned time", async () => {
+    const cookie = await loginCookie();
+    const plannedAt = 8_640_000_000_000_000;
+    const response = await callList("POST", {
+      body: JSON.stringify(
+        maintenanceInput({ mode: "scheduled", plannedAt }),
+      ),
+      cookie,
+      headers: { "x-request-id": "api-scheduled-max-date-key" },
+      origin: TEST_ORIGIN,
+    });
+
+    assert.equal(response.status, 201);
+    const payload = await response.json();
+    assert.equal(payload.notice.plannedAt, plannedAt);
+    assert.equal(payload.notice.status, "upcoming");
+  });
+
   it("replays identical submissions and conflicts on changed normalized input", async () => {
     const cookie = await loginCookie();
     const first = await callList("POST", {
@@ -153,7 +210,7 @@ describe("console announcement routes", () => {
     assert.equal((await list.json()).notices.length, 1);
   });
 
-  it("returns 400 for malformed, oversized, unknown, or scheduling input", async () => {
+  it("returns 400 for malformed, oversized, unknown, or invalid scheduling input", async () => {
     const cookie = await loginCookie();
     const cases = [
       { body: "{not json", key: "api-bad-json" },
@@ -163,9 +220,36 @@ describe("console announcement routes", () => {
       },
       {
         body: JSON.stringify(
-          maintenanceInput({ mode: "scheduled", plannedAt: Date.now() + 1 }),
+          maintenanceInput({
+            mode: "scheduled",
+            plannedAt: Date.now() - 1_000,
+          }),
         ),
-        key: "api-scheduled",
+        key: "api-scheduled-past",
+      },
+      {
+        body: JSON.stringify(
+          maintenanceInput({ mode: "scheduled", plannedAt: null }),
+        ),
+        key: "api-scheduled-missing",
+      },
+      {
+        body: JSON.stringify(
+          maintenanceInput({
+            mode: "scheduled",
+            plannedAt: Number.MAX_SAFE_INTEGER,
+          }),
+        ),
+        key: "api-scheduled-max-safe",
+      },
+      {
+        body: JSON.stringify(
+          maintenanceInput({
+            mode: "scheduled",
+            plannedAt: 8_640_000_000_000_001,
+          }),
+        ),
+        key: "api-scheduled-beyond-date",
       },
       {
         body: JSON.stringify(maintenanceInput({ groupIds: [1, 1] })),
