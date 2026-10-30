@@ -23,7 +23,7 @@ let temp;
 
 beforeEach(async () => {
   temp = await createTempDatabase("maintenance-edit-api-");
-  configureAuthEnv({ databasePath: temp.databasePath });
+  await configureAuthEnv({ databasePath: temp.databasePath });
   routes = await loadMaintenanceRoutes(modules);
 });
 

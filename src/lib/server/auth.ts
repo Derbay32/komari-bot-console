@@ -160,35 +160,50 @@ export async function loginConsole(request: Request) {
   const token = randomBytes(32).toString("base64url");
   const now = Date.now();
   const previousToken = readSessionToken(request.headers.get("cookie"));
+  const verifiedFingerprint = createCredentialFingerprint(config);
+  let staleCredentials = false;
 
   try {
     database.exec("BEGIN IMMEDIATE");
-    database
-      .prepare("DELETE FROM console_sessions WHERE expires_at <= ?")
-      .run(now);
 
-    if (previousToken) {
+    if (
+      createCredentialFingerprint(getConsoleAuthConfig()) !==
+      verifiedFingerprint
+    ) {
+      staleCredentials = true;
+      database.exec("ROLLBACK");
+    } else {
       database
-        .prepare("DELETE FROM console_sessions WHERE token_hash = ?")
-        .run(hashSessionToken(previousToken));
-    }
+        .prepare("DELETE FROM console_sessions WHERE expires_at <= ?")
+        .run(now);
 
-    database
-      .prepare(
-        `INSERT INTO console_sessions
-          (token_hash, username, expires_at, credential_fingerprint)
-         VALUES (?, ?, ?, ?)`,
-      )
-      .run(
-        hashSessionToken(token),
-        config.username,
-        now + CONSOLE_SESSION_TTL_MS,
-        createCredentialFingerprint(config),
-      );
-    database.exec("COMMIT");
+      if (previousToken) {
+        database
+          .prepare("DELETE FROM console_sessions WHERE token_hash = ?")
+          .run(hashSessionToken(previousToken));
+      }
+
+      database
+        .prepare(
+          `INSERT INTO console_sessions
+            (token_hash, username, expires_at, credential_fingerprint)
+           VALUES (?, ?, ?, ?)`,
+        )
+        .run(
+          hashSessionToken(token),
+          config.username,
+          now + CONSOLE_SESSION_TTL_MS,
+          verifiedFingerprint,
+        );
+      database.exec("COMMIT");
+    }
   } catch {
     rollbackQuietly(database);
     return jsonResponse({ message: LOGIN_FAILED_MESSAGE }, 500);
+  }
+
+  if (staleCredentials) {
+    return invalidCredentialsResponse();
   }
 
   const response = jsonResponse({ username: config.username }, 200);
@@ -242,7 +257,14 @@ export async function getSessionConsole(request: Request) {
     return unauthenticatedResponse();
   }
 
-  return jsonResponse({ username: session.username }, 200);
+  return jsonResponse(
+    {
+      isRandomInitialPassword: session.isRandomInitialPassword,
+      reminderDismissed: session.reminderDismissed,
+      username: session.username,
+    },
+    200,
+  );
 }
 
 function reserveLoginAttempt(
@@ -346,7 +368,11 @@ function readSession(config: ConsoleAuthConfig, token: string) {
       return null;
     }
 
-    return { username: String(row.username) };
+    return {
+      isRandomInitialPassword: config.isRandomInitialPassword,
+      reminderDismissed: config.reminderDismissed,
+      username: String(row.username),
+    };
   } catch {
     return null;
   }
