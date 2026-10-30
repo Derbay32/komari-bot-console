@@ -1,357 +1,616 @@
 "use client";
 
-import { SendOutlined } from "@ant-design/icons";
+import {
+  CheckOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+} from "@ant-design/icons";
 import {
   Alert,
-  App,
   Button,
   Card,
-  Checkbox,
-  DatePicker,
+  Drawer,
   Empty,
-  Form,
-  Input,
+  Pagination,
+  Select,
+  Skeleton,
   Space,
-  Statistic,
-  Table,
   Tag,
   Typography,
 } from "antd";
-import type { TableColumnsType } from "antd";
-import type { Dayjs } from "dayjs";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useReducer, useState } from "react";
 
-import { observePromise, withReportedErrors } from "@/lib/async";
-import { createRequestId } from "@/lib/http/audit";
+import { AnnounceComposeModal } from "@/components/announce/announce-compose-modal";
+import { AnnounceDetailsModal } from "@/components/announce/announce-details-modal";
+import styles from "@/components/announce/announce.module.css";
+import { observeCallback } from "@/lib/async";
 import { getRequestErrorMessage } from "@/lib/http/error";
-import { useGroupList, useSendMaintenanceAnnounce } from "@/lib/hooks/use-announce";
-import type { components } from "@/types/komari-api";
+import {
+  useAnnouncementList,
+  useGroupList,
+} from "@/lib/hooks/use-announce";
+import {
+  formatMaintenanceTimestamp,
+  getMaintenanceOutcomeLabel,
+  type MaintenanceNoticeSummary,
+} from "@/lib/maintenance";
+import {
+  ANNOUNCEMENT_PAGE_SIZE,
+  INITIAL_ANNOUNCEMENT_LIST_STATE,
+  buildAnnouncementListModel,
+  getAnnouncementStatusView,
+  getAnnouncementTimingView,
+  reduceAnnouncementListState,
+  type AnnouncementPage,
+  type AnnouncementScope,
+  type AnnouncementScopeOption,
+} from "@/lib/maintenance-view";
 
-type AnnounceResult = components["schemas"]["AnnounceResult"];
-type GroupInfo = components["schemas"]["GroupInfo"];
-type MaintenanceAnnounceRequest = components["schemas"]["MaintenanceAnnounceRequest"];
-type MaintenanceAnnounceResponse = components["schemas"]["MaintenanceAnnounceResponse"];
-
-type AnnounceFormValues = Omit<MaintenanceAnnounceRequest, "scheduled_time"> & {
-  scheduled_time: [Dayjs, Dayjs];
-};
+const SCOPE_ALL_KEY = "all";
 
 export function AnnouncePage() {
-  const { message, modal } = App.useApp();
-  const [form] = Form.useForm<AnnounceFormValues>();
-  const [groupKeyword, setGroupKeyword] = useState("");
-  const [lastResult, setLastResult] = useState<MaintenanceAnnounceResponse | null>(null);
-  const requestIdRef = useRef<string | null>(null);
-
-  const groupsQuery = useGroupList();
-  const sendMutation = useSendMaintenanceAnnounce();
-  const watchedGroupIds = Form.useWatch("group_ids", form);
-  const selectedGroupIds = useMemo(() => watchedGroupIds ?? [], [watchedGroupIds]);
-  const groups = useMemo(() => groupsQuery.data?.groups ?? [], [groupsQuery.data?.groups]);
-  const groupNameMap = useMemo(
-    () => new Map(groups.map((group) => [group.group_id, group.group_name] as const)),
-    [groups],
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [viewingId, setViewingId] = useState<string | null>(null);
+  const [listState, dispatchListState] = useReducer(
+    reduceAnnouncementListState,
+    INITIAL_ANNOUNCEMENT_LIST_STATE,
   );
-  const selectedGroupText = useMemo(() => {
-    if (!selectedGroupIds.length) {
-      return "";
-    }
-
-    return selectedGroupIds
-      .map((groupId) => {
-        const groupName = groupNameMap.get(groupId);
-        return groupName ? `${groupName} (${groupId})` : String(groupId);
-      })
-      .join("、");
-  }, [groupNameMap, selectedGroupIds]);
-
-  const filteredGroups = useMemo(() => {
-    const keyword = groupKeyword.trim().toLowerCase();
-    if (!keyword) {
-      return groups;
-    }
-
-    return groups.filter((group) => {
-      const name = group.group_name.toLowerCase();
-      return name.includes(keyword) || String(group.group_id).includes(keyword);
-    });
-  }, [groupKeyword, groups]);
-
-  const groupColumns: TableColumnsType<GroupInfo> = [
-    {
-      title: "群号",
-      dataIndex: "group_id",
-      width: 180,
-    },
-    {
-      title: "群名",
-      dataIndex: "group_name",
-      ellipsis: true,
-    },
-    {
-      title: "成员数",
-      dataIndex: "member_count",
-      width: 120,
-    },
-  ];
-
-  const resultColumns: TableColumnsType<AnnounceResult> = [
-    {
-      title: "群号",
-      dataIndex: "group_id",
-      width: 180,
-    },
-    {
-      title: "群名",
-      width: 240,
-      render: (_value, record) => groupNameMap.get(record.group_id) ?? "未知群聊",
-    },
-    {
-      title: "状态",
-      dataIndex: "success",
-      width: 120,
-      render: (success: boolean) => (
-        <Tag color={success ? "success" : "error"}>{success ? "成功" : "失败"}</Tag>
-      ),
-    },
-    {
-      title: "错误信息",
-      dataIndex: "error",
-      render: (error: string | null | undefined) => error?.trim() || "-",
-    },
-  ];
-
-  const handleSend = useCallback(async () => {
-    const values = await form.validateFields().catch(() => null);
-    if (!values) {
-      return;
-    }
-
-    const payload: MaintenanceAnnounceRequest = {
-      title: values.title.trim(),
-      content: values.content.trim(),
-      scheduled_time: `${values.scheduled_time[0].format("YYYY-MM-DD HH:mm")} ~ ${values.scheduled_time[1].format("YYYY-MM-DD HH:mm")}`,
-      group_ids: values.group_ids,
-    };
-
-    const confirmation = modal.confirm({
-      title: "确认发送维护通知",
-      content: `将向 ${payload.group_ids.length} 个群发送维护通知，发送后不可撤回。`,
-      okText: "确认发送",
-      cancelText: "取消",
-      okButtonProps: { danger: true },
-      onOk: withReportedErrors(async () => {
-        const requestId = requestIdRef.current ?? createRequestId("web-announce");
-        requestIdRef.current = requestId;
-
-        try {
-          const result = await sendMutation.mutateAsync({ data: payload, requestId });
-          requestIdRef.current = null;
-          form.resetFields();
-          setLastResult(result);
-          observePromise(
-            message.success(`通知发送完成：成功 ${result.success_count} 个，失败 ${result.failed_count} 个`),
-          );
-        } catch (error) {
-          observePromise(message.error(getRequestErrorMessage(error, "发送维护通知失败")));
-        }
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const listQuery = useAnnouncementList();
+  const groupsQuery = useGroupList();
+  const notices = useMemo(
+    () => listQuery.data?.notices ?? [],
+    [listQuery.data?.notices],
+  );
+  const groups = useMemo(
+    () => groupsQuery.data?.groups ?? [],
+    [groupsQuery.data?.groups],
+  );
+  const model = useMemo(
+    () =>
+      buildAnnouncementListModel({
+        groups,
+        historyPage: listState.historyPage,
+        notices,
+        scope: listState.scope,
+        upcomingPage: listState.upcomingPage,
       }),
+    [groups, listState, notices],
+  );
+  const groupNames = useMemo(() => {
+    const names = new Map<number, string>();
+
+    model.scopeOptions.forEach((option) => {
+      if (option.groupId !== null && option.hasKnownName) {
+        names.set(option.groupId, option.name);
+      }
     });
-    // This observes the user's confirmation result, not onOk's errors. Antd
-    // switches to silent mode here; withReportedErrors logs at the action itself.
-    observePromise(Promise.resolve(confirmation));
-  }, [form, message, modal, sendMutation]);
+
+    return names;
+  }, [model.scopeOptions]);
+
+  const handleRefresh = useCallback(async () => {
+    await listQuery.refetch();
+  }, [listQuery]);
+
+  const handleScopeSelect = useCallback((scope: AnnouncementScope) => {
+    dispatchListState({ scope, type: "selectScope" });
+    setFilterOpen(false);
+  }, []);
+
+  const handleUpcomingPage = useCallback((page: number) => {
+    dispatchListState({ page, type: "setUpcomingPage" });
+  }, []);
+
+  const handleHistoryPage = useCallback((page: number) => {
+    dispatchListState({ page, type: "setHistoryPage" });
+  }, []);
 
   return (
-    <Space orientation="vertical" size={16} style={{ display: "flex" }}>
+    <div className={styles.page}>
       <div className="page-header">
         <div className="page-header__main">
-          <Typography.Title level={2} className="page-title">
+          <Typography.Title level={1} className="page-title">
             公告通知
           </Typography.Title>
           <p className="page-description">
-            向小鞠所在的群聊广播维护通知，发送后不可撤回
+            创建维护通知任务，由独立 Worker 从本地数据库领取并发送。
           </p>
+        </div>
+        <Space
+          className={`page-header__actions ${styles.createActions}`}
+          wrap
+        >
+          <Button
+            className={styles.refreshButton}
+            icon={<ReloadOutlined aria-hidden="true" />}
+            onClick={observeCallback(handleRefresh)}
+          >
+            刷新
+          </Button>
+          <Button
+            type="primary"
+            size="large"
+            className={styles.createButton}
+            icon={<PlusOutlined aria-hidden="true" />}
+            aria-label="新增通知"
+            aria-haspopup="dialog"
+            onClick={() => setComposeOpen(true)}
+          >
+            <span className={styles.createLabel}>新增通知</span>
+          </Button>
+        </Space>
+      </div>
+
+      {listQuery.isError ? (
+        <Alert
+          showIcon
+          type="error"
+          title="通知列表加载失败"
+          description={getRequestErrorMessage(
+            listQuery.error,
+            "请稍后重试。",
+          )}
+          action={
+            <Button size="small" onClick={observeCallback(handleRefresh)}>
+              重试
+            </Button>
+          }
+        />
+      ) : null}
+
+      <div className={styles.layout}>
+        <aside className={styles.railColumn} aria-label="群聊筛选">
+          <div className={styles.railCard}>
+            <div className={styles.railHeader}>
+              <h2 className={styles.railTitle}>群聊筛选</h2>
+            </div>
+            <p className={styles.railHint}>
+              数字为即将发送和发送历史的通知条数；跨群通知只计一次。
+              筛选不会改变新增通知的接收群聊。
+            </p>
+            {groupsQuery.isError ? (
+              <p className={styles.railWarning}>
+                群列表加载失败，仅显示通知记录中的群号。
+              </p>
+            ) : null}
+            <nav aria-label="按群聊筛选通知">
+              <ul className={styles.railList}>
+                {model.scopeOptions.map((option) => (
+                  <li key={scopeToKey(option.scope)}>
+                    <ScopeButton
+                      option={option}
+                      active={model.scope === option.scope}
+                      onSelect={handleScopeSelect}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </nav>
+            <p className={styles.railNote}>
+              切换群聊只改变筛选范围，不会修改通知、发送结果或新增通知的接收群聊。
+            </p>
+          </div>
+        </aside>
+
+        <div className={styles.contentColumn}>
+          <button
+            type="button"
+            className={`${styles.mobileFilterButton} ${
+              model.scope === "all" ? "" : styles.mobileFilterButtonActive
+            }`}
+            aria-label="群聊筛选"
+            aria-haspopup="dialog"
+            aria-expanded={filterOpen}
+            title="群聊筛选"
+            onClick={() => setFilterOpen(true)}
+          >
+            <svg
+              className={styles.mobileFilterIcon}
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path
+                d="M4 7h16M7 12h10M10 17h4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+
+          <div className={styles.mobileSelector}>
+            <label
+              className={styles.selectorLabel}
+              htmlFor="announce-group-scope"
+            >
+              群聊筛选
+            </label>
+            <Select<string>
+              id="announce-group-scope"
+              value={scopeToKey(model.scope)}
+              onChange={(value) => handleScopeSelect(keyToScope(value))}
+              options={model.scopeOptions.map((option) => ({
+                label: `${option.name} · ${option.count} 条`,
+                value: scopeToKey(option.scope),
+              }))}
+              style={{ width: "100%" }}
+            />
+            <p className={styles.mobileSelectorHint}>
+              {groupsQuery.isError
+                ? "群列表加载失败，仅显示通知记录中的群号。"
+                : "选择群聊只改变筛选范围，不会修改新增通知的接收群聊或草稿。"}
+            </p>
+          </div>
+
+          <section className={styles.scopeBar} aria-label="当前筛选范围">
+            <div className={styles.scopeTitleRow}>
+              <span className={styles.scopeEyebrow}>当前查看范围</span>
+              <Tag
+                color={model.scope === "all" ? "processing" : "magenta"}
+                className={styles.scopeTag}
+              >
+                {model.scopeLabel}
+              </Tag>
+              <span className={styles.scopeCounts}>
+                即将发送 {model.upcoming.total} 条 · 发送历史{" "}
+                {model.history.total} 条
+              </span>
+            </div>
+            <p className={styles.scopeDescription}>{model.scopeDescription}</p>
+          </section>
+
+          <NoticeSection
+            title="即将发送"
+            hint="按计划时间从早到晚"
+            emptyText={
+              model.scope === "all"
+                ? "全部范围暂无即将发送的通知。"
+                : `「${model.scopeLabel}」暂无即将发送的通知。`
+            }
+            failed={listQuery.isError && !listQuery.data}
+            loading={listQuery.isPending}
+            page={model.upcoming}
+            scope={model.scope}
+            groupNames={groupNames}
+            onOpen={setViewingId}
+            onPageChange={handleUpcomingPage}
+          />
+
+          <NoticeSection
+            title="发送历史"
+            hint="发送时间 / 计划时间从新到旧"
+            emptyText={
+              model.scope === "all"
+                ? "全部范围暂无发送记录。"
+                : `「${model.scopeLabel}」暂无发送记录。`
+            }
+            failed={listQuery.isError && !listQuery.data}
+            loading={listQuery.isPending}
+            page={model.history}
+            scope={model.scope}
+            groupNames={groupNames}
+            onOpen={setViewingId}
+            onPageChange={handleHistoryPage}
+          />
         </div>
       </div>
 
-      <Card className="glass-card" variant="borderless" title="群列表">
-        <Space orientation="vertical" size={12} style={{ display: "flex" }}>
-          <Typography.Text className="subtle-text">
-            当前 Bot 已加入 {groupsQuery.data?.total ?? 0} 个群。
-          </Typography.Text>
-          <Table<GroupInfo>
-            rowKey="group_id"
-            columns={groupColumns}
-            dataSource={groups}
-            loading={groupsQuery.isPending}
-            locale={{ emptyText: groupsQuery.isPending ? "加载中..." : <Empty description="暂无群数据" /> }}
-            pagination={{
-              pageSize: 10,
-              showSizeChanger: false,
-              showTotal: (total) => `共 ${total} 个群`,
-            }}
-            scroll={{ x: 720 }}
-          />
-        </Space>
-      </Card>
+      <Drawer
+        open={filterOpen}
+        placement="bottom"
+        size="auto"
+        title="群聊筛选"
+        onClose={() => setFilterOpen(false)}
+        classNames={{ body: styles.filterDrawerBody }}
+      >
+        <p className={styles.filterDrawerHint}>
+          选择后立即应用筛选并关闭面板。只改变筛选范围，不会修改通知或新增通知的接收群聊。
+        </p>
+        {groupsQuery.isError ? (
+          <p className={styles.filterDrawerHint}>
+            群列表加载失败，仅显示通知记录中的群号。
+          </p>
+        ) : null}
+        <nav aria-label="选择群聊筛选范围">
+          <ul className={styles.filterList}>
+            {model.scopeOptions.map((option) => {
+              const active = model.scope === option.scope;
 
-      <Card className="glass-card" variant="borderless" title="维护通知">
-        <Form
-          form={form}
-          layout="vertical"
-          initialValues={{ group_ids: [] }}
-          onValuesChange={() => {
-            requestIdRef.current = null;
-          }}
-        >
-          <Form.Item
-            name="title"
-            label="标题"
-            rules={[{ required: true, message: "请输入维护标题" }]}
-          >
-            <Input placeholder="例如：Komari 服务维护通知" maxLength={100} />
-          </Form.Item>
-
-          <Form.Item
-            name="content"
-            label="内容"
-            extra="每行一条，发送时将按原始内容提交。"
-            rules={[{ required: true, message: "请输入维护内容" }]}
-          >
-            <Input.TextArea
-              rows={5}
-              placeholder={"预计维护 10 分钟\n期间可能出现短暂不可用\n感谢理解与支持"}
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="scheduled_time"
-            label="预定时间"
-            extra="按分钟选择维护时间区间。"
-            rules={[
-              { required: true, message: "请选择预定时间区间" },
-              {
-                validator: (_rule, value: [Dayjs, Dayjs] | undefined) => {
-                  if (!value || value.length !== 2) {
-                    return Promise.resolve();
-                  }
-
-                  return value[0].isBefore(value[1])
-                    ? Promise.resolve()
-                    : Promise.reject(new Error("结束时间必须晚于开始时间"));
-                },
-              },
-            ]}
-          >
-            <DatePicker.RangePicker
-              showTime={{ format: "HH:mm" }}
-              style={{ width: "100%" }}
-              placeholder={["选择开始时间", "选择结束时间"]}
-              format="YYYY-MM-DD HH:mm"
-            />
-          </Form.Item>
-
-          <Form.Item
-            label="目标群"
-            required
-            extra={`已选 ${selectedGroupIds.length} 个群，可按群号或群名筛选。`}
-          >
-            <Space orientation="vertical" size={12} style={{ display: "flex" }}>
-              <Input
-                readOnly
-                value={selectedGroupText}
-                placeholder="勾选后将在这里显示已选目标群"
-              />
-              <Input
-                placeholder="筛选群号 / 群名"
-                allowClear
-                value={groupKeyword}
-                onChange={(event) => setGroupKeyword(event.target.value)}
-              />
-              <Form.Item
-                name="group_ids"
-                noStyle
-                rules={[{ required: true, message: "请至少选择一个群" }]}
-              >
-                <Checkbox.Group style={{ width: "100%" }}>
-                  <div
-                    style={{
-                      maxHeight: 240,
-                      overflowY: "auto",
-                      padding: 12,
-                      border: "1px solid var(--border-soft)",
-                      borderRadius: 12,
-                      background: "var(--module-card-bg)",
-                    }}
+              return (
+                <li key={scopeToKey(option.scope)}>
+                  <button
+                    type="button"
+                    className={`${styles.filterOption} ${
+                      active ? styles.filterOptionActive : ""
+                    }`}
+                    aria-pressed={active}
+                    onClick={() => handleScopeSelect(option.scope)}
                   >
-                    <Space orientation="vertical" size={8} style={{ display: "flex" }}>
-                      {groupsQuery.isPending ? (
-                        <Typography.Text type="secondary">群列表加载中...</Typography.Text>
-                      ) : filteredGroups.length ? (
-                        filteredGroups.map((group) => (
-                          <Checkbox key={group.group_id} value={group.group_id}>
-                            <Space size={8} wrap>
-                              <Typography.Text>{group.group_name}</Typography.Text>
-                              <Typography.Text type="secondary">
-                                {group.group_id}
-                              </Typography.Text>
-                              <Tag>{group.member_count} 人</Tag>
-                            </Space>
-                          </Checkbox>
-                        ))
-                      ) : (
-                        <Empty description="没有匹配的群" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-                      )}
-                    </Space>
-                  </div>
-                </Checkbox.Group>
-              </Form.Item>
-            </Space>
-          </Form.Item>
+                    <span className={styles.filterOptionText}>
+                      <span className={styles.filterOptionName}>
+                        {option.name}
+                      </span>
+                      {option.groupId === null ? (
+                        <span className={styles.filterOptionMeta}>
+                          所有群聊
+                        </span>
+                      ) : option.hasKnownName ? (
+                        <span className={styles.filterOptionMeta}>
+                          {option.groupId}
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className={styles.filterOptionCount}>
+                      {option.count}
+                    </span>
+                    <span
+                      className={styles.filterOptionCheck}
+                      aria-hidden="true"
+                    >
+                      {active ? <CheckOutlined /> : null}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+      </Drawer>
 
-          <Button
-            type="primary"
-            icon={<SendOutlined />}
-            loading={sendMutation.isPending}
-            onClick={() => observePromise(handleSend())}
-          >
-            发送通知
-          </Button>
-        </Form>
-      </Card>
-
-      {lastResult ? (
-        <Card className="glass-card" variant="borderless" title="发送结果">
-          <Space orientation="vertical" size={16} style={{ display: "flex" }}>
-            <Alert
-              type={lastResult.failed_count ? "warning" : "success"}
-              showIcon
-              title={`本次共处理 ${lastResult.total} 个群，成功 ${lastResult.success_count} 个，失败 ${lastResult.failed_count} 个。`}
-            />
-            <Space size={16} wrap>
-              <Statistic title="总数" value={lastResult.total} />
-              <Statistic
-                title="成功"
-                value={lastResult.success_count}
-                styles={{ content: { color: "#5B9E5A" } }}
-              />
-              <Statistic
-                title="失败"
-                value={lastResult.failed_count}
-                styles={{ content: { color: "var(--error-text)" } }}
-              />
-            </Space>
-            <Table<AnnounceResult>
-              rowKey="group_id"
-              columns={resultColumns}
-              dataSource={lastResult.results}
-              pagination={false}
-              scroll={{ x: 720 }}
-            />
-          </Space>
-        </Card>
+      <AnnounceComposeModal
+        open={composeOpen}
+        onClose={() => setComposeOpen(false)}
+      />
+      {editingId !== null ? (
+        <AnnounceComposeModal
+          key={editingId}
+          open
+          editNoticeId={editingId}
+          onClose={() => setEditingId(null)}
+        />
       ) : null}
-    </Space>
+      <AnnounceDetailsModal
+        noticeId={viewingId}
+        onClose={() => setViewingId(null)}
+        onEdit={(notice) => {
+          setViewingId(null);
+          setEditingId(notice.id);
+        }}
+      />
+    </div>
   );
+}
+
+function ScopeButton({
+  option,
+  active,
+  onSelect,
+}: {
+  option: AnnouncementScopeOption;
+  active: boolean;
+  onSelect: (scope: AnnouncementScope) => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={`${styles.railButton} ${
+        active ? styles.railButtonActive : ""
+      }`}
+      aria-pressed={active}
+      onClick={() => onSelect(option.scope)}
+    >
+      <span className={styles.railItemText}>
+        <span className={styles.railName}>{option.name}</span>
+        {option.groupId === null ? (
+          <span className={styles.railId}>所有群聊</span>
+        ) : option.hasKnownName ? (
+          <span className={styles.railId}>{option.groupId}</span>
+        ) : null}
+      </span>
+      <span
+        className={styles.railCount}
+        title={`${option.count} 条目标通知`}
+        aria-label={`${option.count} 条目标通知`}
+      >
+        {option.count}
+      </span>
+    </button>
+  );
+}
+
+function NoticeSection({
+  title,
+  hint,
+  emptyText,
+  loading,
+  failed,
+  page,
+  scope,
+  groupNames,
+  onOpen,
+  onPageChange,
+}: {
+  title: string;
+  hint: string;
+  emptyText: string;
+  loading: boolean;
+  failed: boolean;
+  page: AnnouncementPage<MaintenanceNoticeSummary>;
+  scope: AnnouncementScope;
+  groupNames: Map<number, string>;
+  onOpen: (id: string) => void;
+  onPageChange: (page: number) => void;
+}) {
+  return (
+    <Card
+      className={`glass-card ${styles.sectionCard}`}
+      variant="borderless"
+      title={
+        <div className={styles.sectionTitle}>
+          <h3 className={styles.sectionHeading}>{title}</h3>
+          <Tag className={styles.countTag}>{page.total} 条</Tag>
+        </div>
+      }
+      extra={<span className={styles.sectionHint}>{hint}</span>}
+    >
+      {loading ? (
+        <div className={styles.loadingState}>
+          <Skeleton active paragraph={{ rows: 4 }} title={false} />
+        </div>
+      ) : failed ? (
+        <div className={styles.emptyState}>
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description="通知列表加载失败，请重试。"
+          />
+        </div>
+      ) : page.items.length === 0 ? (
+        <div className={styles.emptyState}>
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description={emptyText}
+          />
+        </div>
+      ) : (
+        <>
+          <ul className={styles.noticeList}>
+            {page.items.map((notice) => (
+              <NoticeRow
+                key={notice.id}
+                notice={notice}
+                scope={scope}
+                groupNames={groupNames}
+                onOpen={onOpen}
+              />
+            ))}
+          </ul>
+          {page.pageCount > 1 ? (
+            <div className={styles.paginationRow}>
+              <Pagination
+                size="small"
+                current={page.page}
+                pageSize={ANNOUNCEMENT_PAGE_SIZE}
+                total={page.total}
+                showSizeChanger={false}
+                onChange={onPageChange}
+              />
+            </div>
+          ) : null}
+        </>
+      )}
+    </Card>
+  );
+}
+
+function NoticeRow({
+  notice,
+  scope,
+  groupNames,
+  onOpen,
+}: {
+  notice: MaintenanceNoticeSummary;
+  scope: AnnouncementScope;
+  groupNames: Map<number, string>;
+  onOpen: (id: string) => void;
+}) {
+  const status = getAnnouncementStatusView(notice, scope);
+  const timing = getAnnouncementTimingView(notice);
+  const targetNames = notice.groupIds
+    .map((groupId) => groupNames.get(groupId) ?? String(groupId))
+    .join("、");
+  const perGroupLine =
+    scope === "all" &&
+    notice.status === "sent" &&
+    notice.aggregate.perGroup.length > 0
+      ? notice.aggregate.perGroup
+          .map(
+            (target) =>
+              `${groupNames.get(target.groupId) ?? target.groupId}：${getMaintenanceOutcomeLabel(target.outcome)}`,
+          )
+          .join(" · ")
+      : null;
+
+  return (
+    <li className={styles.noticeRow}>
+      <div className={styles.noticeMain}>
+        <div className={styles.noticeTitleRow}>
+          <h4 className={styles.noticeTitle}>{notice.title}</h4>
+          <div className={styles.noticeTags}>
+            <Tag color={status.color} className={styles.noticeTag}>
+              {status.label}
+            </Tag>
+            <Tag className={styles.noticeTag}>
+              {notice.mode === "immediate" ? "立即发送" : "定时发送"}
+            </Tag>
+            {status.requiresReconciliation ? (
+              <Tag color="warning" className={styles.noticeTag}>
+                需人工核对
+              </Tag>
+            ) : null}
+          </div>
+        </div>
+
+        <p className={styles.noticeBody}>{notice.content}</p>
+
+        <div className={styles.noticeMeta}>
+          <span>
+            目标群组：{targetNames}（{notice.groupIds.length} 个）
+          </span>
+          <span>
+            {timing.label}：
+            {timing.value === null ? (
+              "未记录"
+            ) : (
+              <time dateTime={toDateTimeAttribute(timing.value)}>
+                {formatMaintenanceTimestamp(timing.value)}
+              </time>
+            )}
+          </span>
+          {timing.plannedAt !== null ? (
+            <span>
+              计划发送：{formatMaintenanceTimestamp(timing.plannedAt)}
+            </span>
+          ) : null}
+          {timing.note ? (
+            <span className={styles.noticeMuted}>{timing.note}</span>
+          ) : null}
+          <span className={styles.noticeStatusLine}>
+            {scope === "all" ? "聚合状态：" : "当前群结果："}
+            {status.detail}
+          </span>
+          {perGroupLine ? (
+            <span className={styles.noticeMuted}>
+              按群结果：{perGroupLine}
+            </span>
+          ) : null}
+        </div>
+      </div>
+
+      <div className={styles.noticeActions}>
+        <Button
+          type="link"
+          aria-label={`查看通知：${notice.title}`}
+          onClick={() => onOpen(notice.id)}
+        >
+          查看
+        </Button>
+      </div>
+    </li>
+  );
+}
+
+function scopeToKey(scope: AnnouncementScope): string {
+  return scope === "all" ? SCOPE_ALL_KEY : String(scope);
+}
+
+function keyToScope(key: string): AnnouncementScope {
+  return key === SCOPE_ALL_KEY ? "all" : Number(key);
+}
+
+function toDateTimeAttribute(value: number): string {
+  return new Date(value).toISOString();
 }

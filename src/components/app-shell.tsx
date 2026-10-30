@@ -12,7 +12,7 @@ import {
   StopOutlined,
   SunOutlined,
 } from "@ant-design/icons";
-import { Button, Drawer, Grid, Layout, Menu, Segmented, Typography } from "antd";
+import { Button, Drawer, Layout, Menu, Segmented, Typography } from "antd";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Route } from "next";
@@ -21,8 +21,9 @@ import { useTheme } from "next-themes";
 import { useState, useSyncExternalStore } from "react";
 
 import { BrandLogo, D20Icon, DaisyIcon } from "@/components/brand-logo";
+import { LogoutButton } from "@/components/auth/logout-button";
 
-const { Content, Header, Sider } = Layout;
+const { Content, Sider } = Layout;
 
 const routeMap: Record<string, string> = {
   "/": "overview",
@@ -34,16 +35,6 @@ const routeMap: Record<string, string> = {
   "/config": "config",
 };
 
-const titleMap: Record<string, string> = {
-  "/": "总览",
-  "/knowledge": "知识库",
-  "/help": "帮助文档",
-  "/announce": "公告通知",
-  "/bans": "用户封禁",
-  "/prompt/main": "主提示词",
-  "/config": "配置管理",
-};
-
 const CONFIG_ROUTE = "/config" as Route;
 const ANNOUNCE_ROUTE = "/announce" as Route;
 const BANS_ROUTE = "/bans" as Route;
@@ -51,6 +42,17 @@ const PROMPT_MAIN_ROUTE = "/prompt/main" as Route;
 const HELP_ROUTE = "/help" as Route;
 
 const emptySubscribe = () => () => undefined;
+const MOBILE_PORTRAIT_QUERY = "(max-width: 767px) and (orientation: portrait)";
+
+function subscribeToMobilePortrait(onChange: () => void) {
+  const media = window.matchMedia(MOBILE_PORTRAIT_QUERY);
+  media.addEventListener("change", onChange);
+  return () => media.removeEventListener("change", onChange);
+}
+
+function getMobilePortraitSnapshot() {
+  return window.matchMedia(MOBILE_PORTRAIT_QUERY).matches;
+}
 
 const menuItems: ItemType[] = [
   {
@@ -97,124 +99,152 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { setTheme, theme } = useTheme();
   const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
-  const screens = Grid.useBreakpoint();
-  const isMobile = !screens.lg;
+  const isMobilePortrait = useSyncExternalStore(
+    subscribeToMobilePortrait,
+    getMobilePortraitSnapshot,
+    () => false,
+  );
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const selectedKey = routeMap[pathname] ?? "overview";
-  const pageTitle = titleMap[pathname] ?? "管理后台";
+  const isAnnounceRoute = pathname === ANNOUNCE_ROUTE;
   const currentTheme =
     mounted && (theme === "light" || theme === "dark" || theme === "system")
       ? theme
       : "system";
 
-  const navigationContent = (
+  const themeToggle = (
+    <Segmented<"light" | "dark" | "system">
+      className="theme-toggle"
+      shape="round"
+      block
+      aria-label="主题模式"
+      value={currentTheme}
+      onChange={(value) => setTheme(value)}
+      options={[
+        {
+          label: (
+            <span className="theme-toggle__option">
+              <SunOutlined />
+              <span className="theme-toggle__text">浅色</span>
+            </span>
+          ),
+          value: "light",
+          title: "浅色",
+        },
+        {
+          label: (
+            <span className="theme-toggle__option">
+              <MoonOutlined />
+              <span className="theme-toggle__text">深色</span>
+            </span>
+          ),
+          value: "dark",
+          title: "深色",
+        },
+        {
+          label: (
+            <span className="theme-toggle__option">
+              <RobotOutlined />
+              <span className="theme-toggle__text">跟随系统</span>
+            </span>
+          ),
+          value: "system",
+          title: "跟随系统",
+        },
+      ]}
+    />
+  );
+
+  const footerContent = (
     <>
-      <div className="console-brand">
-        <DaisyIcon size={26} className="console-brand__daisy" />
-        <div className="console-brand__row">
-          <div className="console-logo">
-            <BrandLogo size={44} />
-          </div>
-          <div className="console-brand__text">
-            <Typography.Title level={4} className="console-brand__title">
-              Komari Bot Console
-            </Typography.Title>
-            <Typography.Text className="console-brand__subtitle">
-              負けヒロインが多すぎる！
-            </Typography.Text>
+      <LogoutButton />
+      <div style={{ marginTop: 8 }}>{themeToggle}</div>
+    </>
+  );
+
+  const navigationContent = (
+    <div className="console-sider__navigation">
+      <div className="console-sider__scroll">
+        <div className="console-brand">
+          <DaisyIcon size={26} className="console-brand__daisy" />
+          <div className="console-brand__row">
+            <div className="console-logo">
+              <BrandLogo size={44} />
+            </div>
+            <div className="console-brand__text">
+              <Typography.Title level={4} className="console-brand__title">
+                Komari Bot Console
+              </Typography.Title>
+              <Typography.Text className="console-brand__subtitle">
+                負けヒロインが多すぎる！
+              </Typography.Text>
+            </div>
           </div>
         </div>
+        <Menu
+          className="console-menu"
+          mode="inline"
+          selectedKeys={[selectedKey]}
+          defaultOpenKeys={["prompt"]}
+          items={menuItems}
+          onClick={() => setMobileNavOpen(false)}
+        />
       </div>
-      <Menu
-        className="console-menu"
-        mode="inline"
-        selectedKeys={[selectedKey]}
-        defaultOpenKeys={["prompt"]}
-        items={menuItems}
-        onClick={() => setMobileNavOpen(false)}
-      />
       <div className="console-sider-deco" aria-hidden="true">
         <D20Icon size={120} className="console-sider-deco__dice" />
       </div>
-    </>
+    </div>
   );
 
   return (
     <Layout className="console-shell">
-      {isMobile ? (
-        <Drawer
-          open={mobileNavOpen}
-          onClose={() => setMobileNavOpen(false)}
-          placement="left"
-          size={288}
-          className="console-nav-drawer"
-          rootClassName="console-nav-drawer-root"
-          closable={false}
-        >
-          {navigationContent}
-        </Drawer>
-      ) : (
-        <Sider width={252} className="console-sider">
-          {navigationContent}
-        </Sider>
-      )}
+      <Drawer
+        open={isMobilePortrait && mobileNavOpen}
+        onClose={() => setMobileNavOpen(false)}
+        placement="left"
+        size={288}
+        className="console-nav-drawer"
+        rootClassName="console-nav-drawer-root"
+        closable={false}
+        styles={{
+          body: {
+            display: "flex",
+            flexDirection: "column",
+            height: "100%",
+            padding: 0,
+            overflow: "hidden",
+          },
+        }}
+      >
+        {navigationContent}
+        <div className="console-sider__footer">{footerContent}</div>
+      </Drawer>
+      <Sider width={252} className="console-sider">
+        {navigationContent}
+        <div className="console-sider__footer">{footerContent}</div>
+      </Sider>
       <Layout className="console-main">
-        <Header className="console-header">
-          <div className="console-header__title-group">
-            {isMobile ? (
-              <Button
-                type="text"
-                size="large"
-                icon={<MenuOutlined />}
-                className="console-header__menu-btn"
-                onClick={() => setMobileNavOpen(true)}
-                aria-label="打开导航菜单"
-              />
+        <Content className="console-content">
+          <Button
+            type="text"
+            size="large"
+            icon={<MenuOutlined />}
+            className="console-mobile-menu-btn"
+            onClick={() => setMobileNavOpen(true)}
+            aria-label={
+              isAnnounceRoute
+                ? "公告通知，打开导航菜单"
+                : "打开导航菜单"
+            }
+            aria-expanded={isMobilePortrait && mobileNavOpen}
+            aria-haspopup={isAnnounceRoute ? "dialog" : undefined}
+          >
+            {isAnnounceRoute ? (
+              <span className="console-mobile-menu-btn__title">公告通知</span>
             ) : null}
-            <Typography.Title level={4} className="console-header__title">
-              {pageTitle}
-            </Typography.Title>
-          </div>
-          <div className="console-header__actions">
-            <Segmented<"light" | "dark" | "system">
-              className="theme-toggle"
-              shape="round"
-              block={!isMobile}
-              value={currentTheme}
-              onChange={(value) => setTheme(value)}
-              options={[
-                {
-                  label: (
-                    <span className="theme-toggle__option">
-                      <SunOutlined />
-                      <span className="theme-toggle__text">浅色</span>
-                    </span>
-                  ),
-                  value: "light",
-                },
-                {
-                  label: (
-                    <span className="theme-toggle__option">
-                      <MoonOutlined />
-                      <span className="theme-toggle__text">深色</span>
-                    </span>
-                  ),
-                  value: "dark",
-                },
-                {
-                  label: (
-                    <span className="theme-toggle__option">
-                      <RobotOutlined />
-                      <span className="theme-toggle__text">跟随系统</span>
-                    </span>
-                  ),
-                  value: "system",
-                },
-              ]}
-            />
-          </div>
-        </Header>
-        <Content className="console-content">{children}</Content>
+          </Button>
+          {children}
+        </Content>
       </Layout>
     </Layout>
   );

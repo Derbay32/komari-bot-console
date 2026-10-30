@@ -1,11 +1,16 @@
 {
   "name": "komari-bot-console",
   "version": "2.0.0-beta.1",
+  "engines": {
+    "node": ">=22.13.0"
+  },
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && npm run build:worker",
+    "build:worker": "node scripts/build-maintenance-worker.mjs",
     "start": "next start",
+    "start:worker": "node dist/maintenance-worker/worker/maintenance-worker.js",
     "lint": "eslint . --max-warnings 0",
     "typecheck": "next typegen && tsc --noEmit",
     "gen:api": "node scripts/sync-openapi.mjs",

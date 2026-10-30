@@ -1,5 +1,8 @@
 type QueryValue = string | number | boolean | null | undefined;
 
+// Wire marker mirrored by src/lib/server/auth.ts; do not import server auth here.
+const CONSOLE_UNAUTHENTICATED_CODE = "CONSOLE_UNAUTHENTICATED";
+
 type ApiFetchOptions = Omit<RequestInit, "body"> & {
   params?: Record<string, QueryValue>;
   body?: BodyInit | Record<string, unknown> | null;
@@ -18,10 +21,30 @@ export class ApiError extends Error {
 }
 
 export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}) {
-  const { params, body, headers, ...init } = options;
+  const { params } = options;
+
+  return requestJson<T>(buildProxyUrl(path, params), options);
+}
+
+/**
+ * Call a console API route. Shares no-store, error, and session-expiry
+ * handling with apiFetch while targeting /api/console instead of the upstream
+ * proxy.
+ */
+export async function consoleFetch<T>(
+  path: string,
+  options: ApiFetchOptions = {},
+) {
+  const { params } = options;
+
+  return requestJson<T>(buildConsoleUrl(path, params), options);
+}
+
+async function requestJson<T>(url: string, options: ApiFetchOptions) {
+  const { body, headers, ...init } = options;
   const requestHeaders = new Headers(headers);
   const requestBody = normalizeBody(body, requestHeaders);
-  const response = await fetch(buildProxyUrl(path, params), {
+  const response = await fetch(url, {
     ...init,
     headers: requestHeaders,
     body: requestBody,
@@ -29,11 +52,31 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}) {
   });
   const payload = await parseResponseBody(response);
 
+  if (response.status === 401 && isConsoleUnauthenticated(payload)) {
+    redirectToLogin();
+  }
+
   if (!response.ok) {
     throw new ApiError(response.status, payload, resolveErrorMessage(payload, response.status));
   }
 
   return payload as T;
+}
+
+function isConsoleUnauthenticated(payload: unknown) {
+  return (
+    !!payload &&
+    typeof payload === "object" &&
+    Reflect.get(payload, "code") === CONSOLE_UNAUTHENTICATED_CODE
+  );
+}
+
+function redirectToLogin() {
+  if (typeof window === "undefined" || window.location.pathname === "/login") {
+    return;
+  }
+
+  window.location.replace("/login");
 }
 
 function buildProxyUrl(path: string, params?: Record<string, QueryValue>) {
@@ -49,8 +92,28 @@ function buildProxyUrl(path: string, params?: Record<string, QueryValue>) {
     }
   }
 
+  return appendQuery(`/api/proxy${path}`, query);
+}
+
+function buildConsoleUrl(path: string, params?: Record<string, QueryValue>) {
+  const query = new URLSearchParams();
+
+  if (params) {
+    for (const [key, value] of Object.entries(params)) {
+      if (value === null || value === undefined || value === "") {
+        continue;
+      }
+
+      query.set(key, String(value));
+    }
+  }
+
+  return appendQuery(`/api/console${path}`, query);
+}
+
+function appendQuery(pathname: string, query: URLSearchParams) {
   const queryString = query.toString();
-  return `/api/proxy${path}${queryString ? `?${queryString}` : ""}`;
+  return `${pathname}${queryString ? `?${queryString}` : ""}`;
 }
 
 function normalizeBody(
