@@ -27,6 +27,12 @@ const builtinImports = {
   "node:sqlite": "node:sqlite",
 };
 
+const databaseSetupUrl = loadTypeScriptModule(
+  "src/lib/server/database.ts",
+  builtinImports,
+);
+const databaseSetup = await import(databaseSetupUrl);
+
 export function createPasswordHash(password, saltHex = TEST_PASSWORD_SALT) {
   const digest = scryptSync(
     password,
@@ -44,10 +50,16 @@ export function createAuthModuleUrls({ marker = "" } = {}) {
     loadTypeScriptModule("src/lib/server/database.ts", builtinImports) + suffix;
   const passwordUrl =
     loadTypeScriptModule("src/lib/server/password.ts", builtinImports) + suffix;
+  const adminAccountUrl =
+    loadTypeScriptModule("src/lib/server/admin-account.ts", {
+      ...builtinImports,
+      "./database": databaseUrl,
+      "./password": passwordUrl,
+    }) + suffix;
   const configUrl =
     loadTypeScriptModule("src/lib/server/auth-config.ts", {
       ...builtinImports,
-      "./password": passwordUrl,
+      "./admin-account": adminAccountUrl,
     }) + suffix;
   const authUrl = loadTypeScriptModule("src/lib/server/auth.ts", {
     ...builtinImports,
@@ -69,7 +81,16 @@ export function createAuthModuleUrls({ marker = "" } = {}) {
     "next/server": nextServerUrl,
   });
 
-  return { authUrl, configUrl, databaseUrl, loginUrl, logoutUrl, passwordUrl, sessionUrl };
+  return {
+    adminAccountUrl,
+    authUrl,
+    configUrl,
+    databaseUrl,
+    loginUrl,
+    logoutUrl,
+    passwordUrl,
+    sessionUrl,
+  };
 }
 
 export async function loadAuthRoutes(options) {
@@ -134,16 +155,82 @@ export async function createTestDatabasePath() {
   return { databasePath: path.join(directory, "console.sqlite"), directory };
 }
 
-export function configureAuthEnv({
+/**
+ * Configure credential-independent environment values and seed a deterministic
+ * administrator account when the database has none. Repeating this call for the
+ * same database keeps the existing account and sessions intact.
+ */
+export async function configureAuthEnv({
   databasePath,
   origin = TEST_ORIGIN,
   passwordHash = TEST_PASSWORD_HASH,
   username = TEST_USERNAME,
+  isRandomInitialPassword = 0,
+  reminderDismissed = 1,
 } = {}) {
-  process.env.CONSOLE_ADMIN_USERNAME = username;
-  process.env.CONSOLE_ADMIN_PASSWORD_HASH = passwordHash;
   process.env.CONSOLE_PUBLIC_ORIGIN = origin;
   process.env.CONSOLE_DATABASE_PATH = databasePath;
+
+  const database = databaseSetup.openConsoleDatabase(databasePath);
+
+  try {
+    const now = Date.now();
+    database
+      .prepare(
+        `INSERT OR IGNORE INTO console_admin_account
+          (id, username, password_hash, is_random_initial_password,
+           reminder_dismissed, created_at, updated_at)
+         VALUES (1, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        username,
+        passwordHash,
+        isRandomInitialPassword ? 1 : 0,
+        reminderDismissed ? 1 : 0,
+        now,
+        now,
+      );
+  } finally {
+    database.close();
+  }
+}
+
+/** Replace the stored administrator credential for credential-change tests. */
+export async function writeConsoleAdminAccount({
+  databasePath,
+  passwordHash = TEST_PASSWORD_HASH,
+  username = TEST_USERNAME,
+  isRandomInitialPassword = 0,
+  reminderDismissed = 1,
+}) {
+  const database = databaseSetup.openConsoleDatabase(databasePath);
+
+  try {
+    const now = Date.now();
+    database
+      .prepare(
+        `INSERT INTO console_admin_account
+          (id, username, password_hash, is_random_initial_password,
+           reminder_dismissed, created_at, updated_at)
+         VALUES (1, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           username = excluded.username,
+           password_hash = excluded.password_hash,
+           is_random_initial_password = excluded.is_random_initial_password,
+           reminder_dismissed = excluded.reminder_dismissed,
+           updated_at = excluded.updated_at`,
+      )
+      .run(
+        username,
+        passwordHash,
+        isRandomInitialPassword ? 1 : 0,
+        reminderDismissed ? 1 : 0,
+        now,
+        now,
+      );
+  } finally {
+    database.close();
+  }
 }
 
 export function clearAuthEnv() {

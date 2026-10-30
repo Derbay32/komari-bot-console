@@ -29,7 +29,7 @@ let service;
 
 beforeEach(async () => {
   temp = await createTempDatabase("maintenance-retry-api-test-");
-  configureAuthEnv({ databasePath: temp.databasePath });
+  await configureAuthEnv({ databasePath: temp.databasePath });
   routes = await loadMaintenanceRoutes(modules);
   now = 1_800_000_000_000;
   upstream = await startFakeUpstream((request) => ({

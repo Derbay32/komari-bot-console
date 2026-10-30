@@ -1,42 +1,69 @@
 import path from "node:path";
 
-import { isConsolePasswordHash } from "./password";
+import {
+  getConsoleAdminAccount,
+  type ConsoleAdminAccount,
+} from "./admin-account";
 
 export const CONSOLE_CONFIG_UNAVAILABLE_MESSAGE = "控制台认证配置不可用。";
 
-const MAX_CONFIG_USERNAME_LENGTH = 128;
-
 export type ConsoleAuthConfig = {
   databasePath: string;
+  isRandomInitialPassword: boolean;
   passwordHash: string;
   publicOrigin: string;
+  reminderDismissed: boolean;
   username: string;
 };
 
+export type ConsoleAuthEnvironment = {
+  databasePath: string;
+  publicOrigin: string;
+};
+
 /**
- * Read console authentication configuration from server process environment.
- * Every value is required; malformed input fails closed without echoing values.
+ * Read console authentication configuration. Environment values are validated
+ * on every call, and the administrator credential is read from SQLite so
+ * changed or damaged credentials take effect immediately.
  */
 export function getConsoleAuthConfig(): ConsoleAuthConfig {
-  const username = process.env.CONSOLE_ADMIN_USERNAME?.trim() ?? "";
-  const passwordHash = process.env.CONSOLE_ADMIN_PASSWORD_HASH ?? "";
-  const publicOrigin = process.env.CONSOLE_PUBLIC_ORIGIN?.trim() ?? "";
-  const databasePath = process.env.CONSOLE_DATABASE_PATH?.trim() ?? "";
+  const environment = getConsoleAuthEnvironment();
+  let account: ConsoleAdminAccount | null;
 
-  if (
-    !username ||
-    username.length > MAX_CONFIG_USERNAME_LENGTH ||
-    !isConsolePasswordHash(passwordHash)
-  ) {
+  try {
+    account = getConsoleAdminAccount(environment.databasePath);
+  } catch {
+    throw new ConsoleConfigError();
+  }
+
+  if (!account) {
     throw new ConsoleConfigError();
   }
 
   return {
-    databasePath: parseDatabasePath(databasePath),
-    passwordHash,
-    publicOrigin: parsePublicOrigin(publicOrigin),
-    username,
+    databasePath: environment.databasePath,
+    isRandomInitialPassword: account.isRandomInitialPassword,
+    passwordHash: account.passwordHash,
+    publicOrigin: environment.publicOrigin,
+    reminderDismissed: account.reminderDismissed,
+    username: account.username,
   };
+}
+
+/** Validate and return the credential-independent bootstrap configuration. */
+export function getConsoleAuthEnvironment(): ConsoleAuthEnvironment {
+  const publicOrigin = process.env.CONSOLE_PUBLIC_ORIGIN?.trim() ?? "";
+  const databasePath = process.env.CONSOLE_DATABASE_PATH?.trim() ?? "";
+
+  return {
+    databasePath: parseDatabasePath(databasePath),
+    publicOrigin: parsePublicOrigin(publicOrigin),
+  };
+}
+
+/** Return the validated database path for credential maintenance commands. */
+export function getConsoleDatabasePath(): string {
+  return parseDatabasePath(process.env.CONSOLE_DATABASE_PATH?.trim() ?? "");
 }
 
 export class ConsoleConfigError extends Error {

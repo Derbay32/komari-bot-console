@@ -30,8 +30,6 @@ NEXT_PUBLIC_APP_NAME=Komari 管理后台
 KOMARI_API_ORIGIN=http://127.0.0.1:8880
 KOMARI_API_BEARER_TOKEN=你的令牌
 KOMARI_OPENAPI_URL=http://127.0.0.1:8880/api/komari-management/openapi.json
-CONSOLE_ADMIN_USERNAME=admin
-CONSOLE_ADMIN_PASSWORD_HASH=scrypt\$<32位小写十六进制盐>\$<128位小写十六进制摘要>
 CONSOLE_PUBLIC_ORIGIN=http://localhost:3000
 CONSOLE_DATABASE_PATH=/absolute/path/to/komari-console.sqlite
 ```
@@ -42,8 +40,6 @@ CONSOLE_DATABASE_PATH=/absolute/path/to/komari-console.sqlite
 | `KOMARI_API_ORIGIN` | 后端 API 服务地址，供服务端代理转发使用 |
 | `KOMARI_API_BEARER_TOKEN` | 后端 Bearer Token，必填 |
 | `KOMARI_OPENAPI_URL` | OpenAPI 规范地址，用于类型同步 |
-| `CONSOLE_ADMIN_USERNAME` | 管理员用户名，必填 |
-| `CONSOLE_ADMIN_PASSWORD_HASH` | 管理员密码的 scrypt 哈希，必填 |
 | `CONSOLE_PUBLIC_ORIGIN` | 控制台公开来源，必填 |
 | `CONSOLE_DATABASE_PATH` | 控制台 SQLite 数据库的绝对文件路径，必填 |
 
@@ -70,8 +66,26 @@ npm run typecheck
 
 ## 控制台登录
 
-控制台只提供一个管理员账号。四项 `CONSOLE_*` 变量都必填。仓库不提供默认凭据。
-缺少变量或值格式错误时，认证接口返回 500，页面显示配置不可用。
+控制台只提供一个管理员账号。`CONSOLE_PUBLIC_ORIGIN` 和 `CONSOLE_DATABASE_PATH` 必填。仓库不提供默认密码。
+
+### 首次启动与初始密码
+
+1. 启动 Web 服务。预期结果：服务端生成随机初始密码，并在标准输出显示用户名和密码。
+2. 保存该密码。检查：密码只显示一次，数据库中只保存密码哈希。
+3. 在登录页输入用户名 `admin` 和该密码。预期结果：进入控制台。
+
+数据库没有账户记录、密码为 `NULL` 或密码为空时，服务端在启动阶段生成新密码。
+初始化时用户名固定为 `admin`。已有有效密码时，服务端保留原用户名和密码。
+
+服务端只在凭据事务提交成功后显示一次密码。正常重启不重新生成密码，也不再次显示密码。
+如果服务端在事务提交后、日志输出前退出，重启不会恢复密码。此时必须使用服务端密码重置命令恢复登录。
+
+警告：日志中的初始密码等同于管理员凭据。包含该密码的日志必须限制为凭据级访问权限。禁止公开或提交包含该密码的日志。
+
+认证接口每次读取 SQLite 中的当前凭据。服务端不读取 `CONSOLE_ADMIN_USERNAME` 和 `CONSOLE_ADMIN_PASSWORD_HASH`，也不回退使用这两个变量。
+服务端在启动阶段初始化管理员凭据。初始化失败时，启动钩子返回错误，正常请求处理不启动。
+服务端运行期间，缺少必填变量、值格式错误或凭据损坏时，登录接口返回 500 和固定错误文案。
+未登录时，会话接口返回 401。
 
 登录成功后，服务端签发会话 Cookie。Cookie 名为 `komari_console_session`。
 Cookie 包含 `HttpOnly`、`SameSite=Strict`、`Path=/` 属性。如果 `CONSOLE_PUBLIC_ORIGIN` 使用 HTTPS，Cookie 还包含 `Secure` 属性。
@@ -82,29 +96,6 @@ Cookie 包含 `HttpOnly`、`SameSite=Strict`、`Path=/` 属性。如果 `CONSOLE
 `CONSOLE_PUBLIC_ORIGIN` 必须写纯来源，例如 `https://console.example.com`。该值不能包含用户信息、路径、查询参数或片段。
 HTTP 来源只允许 `localhost`、`127.0.0.1` 和 `[::1]`。其他主机必须使用 HTTPS。
 `CONSOLE_DATABASE_PATH` 必须是绝对文件路径。服务端在第一次使用数据库时创建目录和 SQLite 文件。
-
-### 生成密码哈希
-
-`CONSOLE_ADMIN_PASSWORD_HASH` 的格式为 `scrypt$<32 位小写十六进制盐>$<128 位小写十六进制摘要>`。
-
-Next.js 解析 `.env` 时会展开 `$` 变量。写入 `.env` 时，把哈希中的每个 `$` 写成 `\$`。通过进程环境变量直接注入时，值保持原始 `$`。
-
-1. 运行以下命令生成哈希。命令从标准输入读取密码，保留首尾空格和反斜杠。预期输出：一行 `CONSOLE_ADMIN_PASSWORD_HASH=scrypt\$...\$...` 赋值。
-
-```bash
-IFS= read -r -s -p "管理员密码: " CONSOLE_ADMIN_PASSWORD; echo
-printf '%s' "$CONSOLE_ADMIN_PASSWORD" | node -e 'const { randomBytes, scryptSync } = require("node:crypto");
-const password = require("node:fs").readFileSync(0);
-const salt = randomBytes(16).toString("hex");
-const digest = scryptSync(password, Buffer.from(salt, "hex"), 64, { N: 16384, r: 8, p: 1 }).toString("hex");
-const hash = `scrypt$${salt}$${digest}`;
-console.log(`CONSOLE_ADMIN_PASSWORD_HASH=${hash.replaceAll("$", "\\$")}`);'
-unset CONSOLE_ADMIN_PASSWORD
-```
-
-2. 将输出行写入 `.env`。检查：`CONSOLE_ADMIN_PASSWORD_HASH` 的每个 `$` 前都有反斜杠。
-
-3. 如果通过进程环境变量注入值，删除反斜杠。检查：值以 `scrypt$` 开头。
 
 ## 维护通知 Worker
 
