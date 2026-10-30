@@ -126,6 +126,85 @@ export async function initializeConsoleAdmin(
   };
 }
 
+/**
+ * Replace the console administrator password through an explicit server-side
+ * operation. The candidate password is generated outside the synchronous write
+ * transaction. The transaction re-reads the stored row and keeps any existing
+ * custom username; a missing or empty password resets the username to `admin`.
+ * The plaintext is returned only after the commit succeeds.
+ */
+export async function resetConsoleAdminPassword(
+  databasePath: string,
+): Promise<{ password: string; username: string }> {
+  const database = getConsoleDatabase(databasePath);
+  let candidate: { password: string; passwordHash: string };
+
+  try {
+    const password = generateConsolePassword();
+    candidate = {
+      password,
+      passwordHash: await hashConsolePassword(password),
+    };
+  } catch (error) {
+    throw toAccountError(error);
+  }
+
+  try {
+    database.exec("BEGIN IMMEDIATE");
+
+    const current = readAdminRow(database);
+    const username = resolveResetUsername(current);
+    const now = Date.now();
+    const createdAt = readCreatedAt(current) ?? now;
+
+    database
+      .prepare(
+        `INSERT INTO console_admin_account
+          (id, username, password_hash, is_random_initial_password,
+           reminder_dismissed, created_at, updated_at)
+         VALUES (1, ?, ?, 1, 0, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           username = excluded.username,
+           password_hash = excluded.password_hash,
+           is_random_initial_password =
+             excluded.is_random_initial_password,
+           reminder_dismissed = excluded.reminder_dismissed,
+           created_at = excluded.created_at,
+           updated_at = excluded.updated_at`,
+      )
+      .run(username, candidate.passwordHash, createdAt, now);
+    database.prepare("DELETE FROM console_sessions").run();
+    database.exec("COMMIT");
+
+    return { password: candidate.password, username };
+  } catch (error) {
+    rollbackQuietly(database);
+    throw toAccountError(error);
+  }
+}
+
+/**
+ * A stored nonempty password, even a malformed hash, means the account belongs
+ * to an operator: keep the username instead of silently restoring `admin`.
+ */
+function resolveResetUsername(row: ConsoleAdminRow | undefined) {
+  if (!row || isMissingPassword(row.password_hash)) {
+    return ADMIN_USERNAME;
+  }
+
+  const username = row.username;
+
+  if (
+    typeof username !== "string" ||
+    username.length === 0 ||
+    username.length > MAX_ADMIN_USERNAME_LENGTH
+  ) {
+    throw new ConsoleAdminAccountError();
+  }
+
+  return username;
+}
+
 function readAdminRow(database: ReturnType<typeof getConsoleDatabase>) {
   return database
     .prepare(

@@ -16,6 +16,12 @@ import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 const realScript = path.join(root, "scripts", "build-maintenance-worker.mjs");
+const realHelper = path.join(
+  root,
+  "scripts",
+  "lib",
+  "build-node-program.mjs",
+);
 const realNodeModules = path.join(root, "node_modules");
 const scratchRoot = path.join(root, "tmp");
 const SENTINEL = "synthetic sentinel must survive";
@@ -26,11 +32,15 @@ let scriptPath;
 before(() => {
   mkdirSync(scratchRoot, { recursive: true });
   fixtureRoot = mkdtempSync(path.join(scratchRoot, "build-safety-"));
-  mkdirSync(path.join(fixtureRoot, "scripts"));
+  mkdirSync(path.join(fixtureRoot, "scripts", "lib"), { recursive: true });
   mkdirSync(path.join(fixtureRoot, "src", "worker"), { recursive: true });
   mkdirSync(path.join(fixtureRoot, "tmp"), { recursive: true });
   scriptPath = path.join(fixtureRoot, "scripts", "build-maintenance-worker.mjs");
   copyFileSync(realScript, scriptPath);
+  copyFileSync(
+    realHelper,
+    path.join(fixtureRoot, "scripts", "lib", "build-node-program.mjs"),
+  );
   symlinkSync(realNodeModules, path.join(fixtureRoot, "node_modules"), "dir");
   writeFileSync(
     path.join(fixtureRoot, "src", "worker", "maintenance-worker.ts"),

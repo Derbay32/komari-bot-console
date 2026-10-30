@@ -7,10 +7,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build && npm run build:worker",
+    "build": "next build && npm run build:worker && npm run build:admin",
     "build:worker": "node scripts/build-maintenance-worker.mjs",
+    "build:admin": "node scripts/build-admin-tools.mjs",
     "start": "next start",
     "start:worker": "node dist/maintenance-worker/worker/maintenance-worker.js",
+    "reset:password": "node dist/admin-tools/cli/reset-password.js",
     "lint": "eslint . --max-warnings 0",
     "typecheck": "next typegen && tsc --noEmit",
     "gen:api": "node scripts/sync-openapi.mjs",
