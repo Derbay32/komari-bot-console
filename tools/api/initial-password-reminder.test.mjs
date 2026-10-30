@@ -322,6 +322,59 @@ describe("initial password reminder dismissal", () => {
     });
   });
 
+  it("re-reads replacement credentials after the write lock is acquired", async () => {
+    const replacementPassword = "replacement-password";
+    const replacementPasswordHash = createPasswordHash(replacementPassword);
+    await seedRandomInitialPassword();
+    const oldCookie = await loginFor();
+    const worker = new Worker(REPLACEMENT_LOCK_SOURCE, {
+      eval: true,
+      workerData: { databasePath, replacementPasswordHash },
+    });
+
+    try {
+      await waitForWorkerMessage(worker, "locked");
+
+      // The worker's replacement credential is uncommitted, so this request
+      // starts with the old credential just like a reset racing a stale tab.
+      assert.deepEqual(readAccountRow(), {
+        is_random_initial_password: 1,
+        password_hash: TEST_PASSWORD_HASH,
+        reminder_dismissed: 0,
+      });
+
+      const response = await dismissReminderRequest(
+        authRoutes.dismissReminderRoute,
+        oldCookie,
+      );
+
+      assert.equal(response.status, 401);
+      assert.deepEqual(await response.json(), UNAUTHENTICATED_BODY);
+    } finally {
+      await worker.terminate();
+    }
+
+    // The worker committed a replacement credential but never touched the
+    // session row, so rejection must come from the refreshed fingerprint.
+    assert.deepEqual(readAccountRow(), {
+      is_random_initial_password: 1,
+      password_hash: replacementPasswordHash,
+      reminder_dismissed: 0,
+    });
+    assert.equal(countSessionRows(), 1);
+
+    const staleSession = await sessionGet(authRoutes.sessionRoute, oldCookie);
+    assert.equal(staleSession.status, 401);
+    assert.deepEqual(await staleSession.json(), UNAUTHENTICATED_BODY);
+
+    const newCookie = await loginFor({ password: replacementPassword });
+    assert.deepEqual(await readReminderMetadata(newCookie), {
+      isRandomInitialPassword: true,
+      reminderDismissed: false,
+      username: TEST_USERNAME,
+    });
+  });
+
   it("does not enable the reminder for a non-initial password", async () => {
     const cookie = await loginFor();
 
@@ -389,6 +442,43 @@ function withDatabase(operation) {
   }
 }
 
+function withDatabaseValue(operation) {
+  const database = new DatabaseSync(databasePath);
+
+  try {
+    database.exec("PRAGMA busy_timeout = 5000;");
+    return operation(database);
+  } finally {
+    database.close();
+  }
+}
+
+function readAccountRow() {
+  const row = withDatabaseValue((database) =>
+    database
+      .prepare(
+        `SELECT password_hash, is_random_initial_password, reminder_dismissed
+         FROM console_admin_account
+         WHERE id = 1`,
+      )
+      .get(),
+  );
+
+  return {
+    is_random_initial_password: Number(row.is_random_initial_password),
+    password_hash: String(row.password_hash),
+    reminder_dismissed: Number(row.reminder_dismissed),
+  };
+}
+
+function countSessionRows() {
+  const row = withDatabaseValue((database) =>
+    database.prepare("SELECT COUNT(*) AS count FROM console_sessions").get(),
+  );
+
+  return Number(row.count);
+}
+
 const LOCK_HOLDER_SOURCE = `
   const { DatabaseSync } = require("node:sqlite");
   const { parentPort, workerData } = require("node:worker_threads");
@@ -403,6 +493,27 @@ const LOCK_HOLDER_SOURCE = `
   // request can only observe it after BEGIN IMMEDIATE succeeds.
   Atomics.store(state, 0, 2);
   database.exec("ROLLBACK");
+  database.close();
+  parentPort.postMessage("released");
+`;
+
+const REPLACEMENT_LOCK_SOURCE = `
+  const { DatabaseSync } = require("node:sqlite");
+  const { parentPort, workerData } = require("node:worker_threads");
+
+  const database = new DatabaseSync(workerData.databasePath);
+  database.exec("PRAGMA busy_timeout = 5000;");
+  database.exec("BEGIN IMMEDIATE");
+  database
+    .prepare(
+      "UPDATE console_admin_account SET password_hash = ?, " +
+        "is_random_initial_password = 1, reminder_dismissed = 0, " +
+        "updated_at = ? WHERE id = 1",
+    )
+    .run(workerData.replacementPasswordHash, Date.now());
+  parentPort.postMessage("locked");
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 500);
+  database.exec("COMMIT");
   database.close();
   parentPort.postMessage("released");
 `;
