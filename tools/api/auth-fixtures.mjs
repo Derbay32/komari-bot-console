@@ -80,12 +80,20 @@ export function createAuthModuleUrls({ marker = "" } = {}) {
     "@/lib/server/auth": authUrl,
     "next/server": nextServerUrl,
   });
+  const dismissReminderUrl = loadTypeScriptModule(
+    "src/app/api/auth/initial-password-reminder/dismiss/route.ts",
+    {
+      "@/lib/server/auth": authUrl,
+      "next/server": nextServerUrl,
+    },
+  );
 
   return {
     adminAccountUrl,
     authUrl,
     configUrl,
     databaseUrl,
+    dismissReminderUrl,
     loginUrl,
     logoutUrl,
     passwordUrl,
@@ -99,9 +107,11 @@ export async function loadAuthRoutes(options) {
   const login = await import(urls.loginUrl);
   const logout = await import(urls.logoutUrl);
   const session = await import(urls.sessionUrl);
+  const dismissReminder = await import(urls.dismissReminderUrl);
 
   return {
     authorizeConsoleRequest: auth.authorizeConsoleRequest,
+    dismissReminderRoute: dismissReminder,
     getConsoleSession: auth.getConsoleSession,
     loginRoute: login,
     logoutRoute: logout,
@@ -284,6 +294,34 @@ export function sessionGet(sessionRoute, cookie) {
     new NextRequest(`${TEST_ORIGIN}/api/auth/session`, {
       headers: cookie ? { cookie } : {},
     }),
+  );
+}
+
+export function dismissReminderRequest(
+  dismissReminderRoute,
+  cookie,
+  { body, origin = TEST_ORIGIN } = {},
+) {
+  const headers = {};
+  if (cookie) {
+    headers.cookie = cookie;
+  }
+  if (origin !== null) {
+    headers.origin = origin;
+  }
+  if (body !== undefined) {
+    headers["content-type"] = "application/json";
+  }
+
+  return dismissReminderRoute.POST(
+    new NextRequest(
+      `${TEST_ORIGIN}/api/auth/initial-password-reminder/dismiss`,
+      {
+        body,
+        headers,
+        method: "POST",
+      },
+    ),
   );
 }
 
