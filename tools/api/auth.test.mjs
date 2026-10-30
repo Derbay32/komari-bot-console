@@ -2,6 +2,7 @@ import { after, afterEach, beforeEach, describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  NextRequest,
   TEST_ORIGIN,
   TEST_PASSWORD,
   TEST_PASSWORD_HASH,
@@ -9,6 +10,7 @@ import {
   TEST_USERNAME,
   clearAuthEnv,
   configureAuthEnv,
+  createPasswordHash,
   createTestDatabasePath,
   loadAuthRoutes,
   loginRequest,
@@ -16,6 +18,7 @@ import {
   sessionCookie,
   sessionGet,
   sessionToken,
+  writeConsoleAdminAccount,
 } from "./auth-fixtures.mjs";
 
 const originalDateNow = Date.now;
@@ -28,7 +31,7 @@ beforeEach(async () => {
   };
 
   const temp = await createTestDatabasePath();
-  configureAuthEnv({ databasePath: temp.databasePath });
+  await configureAuthEnv({ databasePath: temp.databasePath });
   authRoutes = await loadAuthRoutes();
 });
 
@@ -55,7 +58,11 @@ describe("console authentication", () => {
 
     assert.equal(session.status, 200);
     assert.equal(session.headers.get("cache-control"), "no-store");
-    assert.deepEqual(await session.json(), { username: TEST_USERNAME });
+    assert.deepEqual(await session.json(), {
+      isRandomInitialPassword: false,
+      reminderDismissed: true,
+      username: TEST_USERNAME,
+    });
 
     const authorization = await authRoutes.authorizeConsoleRequest(
       new Request(`${TEST_ORIGIN}/api/v2/komari-knowledge/knowledge`, {
@@ -105,19 +112,20 @@ describe("console authentication", () => {
     }
   });
 
-  it("fails closed when required configuration is malformed", async () => {
-    process.env.CONSOLE_ADMIN_USERNAME = "leaky-admin-name";
-    process.env.CONSOLE_ADMIN_PASSWORD_HASH = "not-a-valid-hash";
-
-    const response = await loginRequest(authRoutes.loginRoute, {
-      username: "leaky-admin-name",
+  it("fails closed when the stored credential is malformed", async () => {
+    const malformedHash = "scrypt$not-a-valid-hash";
+    await writeConsoleAdminAccount({
+      databasePath: process.env.CONSOLE_DATABASE_PATH,
+      passwordHash: malformedHash,
     });
+
+    const response = await loginRequest(authRoutes.loginRoute);
     const body = await response.json();
 
     assert.equal(response.status, 500);
     assert.equal(response.headers.get("cache-control"), "no-store");
     assert.deepEqual(body, { message: "控制台认证配置不可用。" });
-    assert.doesNotMatch(JSON.stringify(body), /leaky-admin-name|not-a-valid-hash/);
+    assert.equal(JSON.stringify(body).includes(malformedHash), false);
 
     const session = await sessionGet(authRoutes.sessionRoute, null);
     assert.equal(session.status, 500);
@@ -173,7 +181,7 @@ describe("console authentication", () => {
   });
 
   it("sets a token-only hardened cookie and no-store responses", async () => {
-    configureAuthEnv({
+    await configureAuthEnv({
       databasePath: process.env.CONSOLE_DATABASE_PATH,
       origin: TEST_SECURE_ORIGIN,
     });
@@ -194,7 +202,7 @@ describe("console authentication", () => {
     assert.equal(setCookie.includes(TEST_PASSWORD_HASH), false);
     assert.equal(JSON.stringify(await response.json()).includes(token), false);
 
-    configureAuthEnv({
+    await configureAuthEnv({
       databasePath: process.env.CONSOLE_DATABASE_PATH,
       origin: TEST_ORIGIN,
     });
@@ -292,7 +300,11 @@ describe("console authentication", () => {
 
     const session = await sessionGet(freshRoutes.sessionRoute, cookie);
     assert.equal(session.status, 200);
-    assert.deepEqual(await session.json(), { username: TEST_USERNAME });
+    assert.deepEqual(await session.json(), {
+      isRandomInitialPassword: false,
+      reminderDismissed: true,
+      username: TEST_USERNAME,
+    });
 
     const authorization = await freshRoutes.authorizeConsoleRequest(
       new Request(`${TEST_ORIGIN}/api/v2/komari-knowledge/knowledge`, {
@@ -346,5 +358,94 @@ describe("console authentication", () => {
     assert.equal(statuses.filter((status) => status === 401).length, 10);
     assert.equal(statuses.filter((status) => status === 429).length, 10);
     assert.equal((await loginRequest(authRoutes.loginRoute)).status, 429);
+  });
+
+  it("returns reminder metadata without exposing credential internals", async () => {
+    await writeConsoleAdminAccount({
+      databasePath: process.env.CONSOLE_DATABASE_PATH,
+      isRandomInitialPassword: true,
+      reminderDismissed: false,
+    });
+    const login = await loginRequest(authRoutes.loginRoute);
+    const cookie = sessionCookie(login);
+    const session = await sessionGet(authRoutes.sessionRoute, cookie);
+    const body = await session.json();
+
+    assert.equal(login.status, 200);
+    assert.deepEqual(await login.clone().json(), { username: TEST_USERNAME });
+    assert.equal(session.status, 200);
+    assert.deepEqual(body, {
+      isRandomInitialPassword: true,
+      reminderDismissed: false,
+      username: TEST_USERNAME,
+    });
+
+    const serialized = JSON.stringify(body);
+    assert.equal(serialized.includes(TEST_PASSWORD_HASH), false);
+    assert.equal(serialized.includes("passwordHash"), false);
+    assert.equal(serialized.includes("fingerprint"), false);
+  });
+
+  it("invalidates existing sessions when the stored credential changes", async () => {
+    const login = await loginRequest(authRoutes.loginRoute);
+    const cookie = sessionCookie(login);
+    assert.equal((await sessionGet(authRoutes.sessionRoute, cookie)).status, 200);
+
+    await writeConsoleAdminAccount({
+      databasePath: process.env.CONSOLE_DATABASE_PATH,
+      passwordHash: createPasswordHash("replacement-password"),
+    });
+
+    assert.equal((await sessionGet(authRoutes.sessionRoute, cookie)).status, 401);
+    assert.equal((await loginRequest(authRoutes.loginRoute)).status, 401);
+    assert.equal(
+      (
+        await loginRequest(authRoutes.loginRoute, {
+          password: "replacement-password",
+        })
+      ).status,
+      200,
+    );
+  });
+
+  it("rejects a login whose credential changes before it commits", async () => {
+    let controller;
+    const body = new ReadableStream({
+      start(value) {
+        controller = value;
+      },
+    });
+    const request = new NextRequest(`${TEST_ORIGIN}/api/auth/login`, {
+      body,
+      duplex: "half",
+      headers: {
+        "content-type": "application/json",
+        origin: TEST_ORIGIN,
+      },
+      method: "POST",
+    });
+    const pendingLogin = authRoutes.loginRoute.POST(request);
+
+    await writeConsoleAdminAccount({
+      databasePath: process.env.CONSOLE_DATABASE_PATH,
+      passwordHash: createPasswordHash("replacement-password"),
+    });
+    controller.enqueue(
+      new TextEncoder().encode(
+        JSON.stringify({
+          password: TEST_PASSWORD,
+          username: TEST_USERNAME,
+        }),
+      ),
+    );
+    controller.close();
+
+    const response = await pendingLogin;
+
+    assert.equal(response.status, 401);
+    assert.equal(response.headers.get("set-cookie"), null);
+    assert.deepEqual(await response.json(), {
+      message: "用户名或密码错误。",
+    });
   });
 });

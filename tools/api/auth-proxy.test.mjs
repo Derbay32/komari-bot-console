@@ -42,7 +42,7 @@ beforeEach(async () => {
   };
 
   const temp = await createTestDatabasePath();
-  configureAuthEnv({ databasePath: temp.databasePath });
+  await configureAuthEnv({ databasePath: temp.databasePath });
   authRoutes = await loadAuthRoutes();
   proxyRoute = await loadProxyRoute();
 });

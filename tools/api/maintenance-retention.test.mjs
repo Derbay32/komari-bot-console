@@ -86,7 +86,7 @@ describe("notice history retention", () => {
     assert.equal(await maintenance.get(created.notice.id), null);
     assert.deepEqual(await maintenance.list(), []);
 
-    configureAuthEnv({ databasePath: temp.databasePath });
+    await configureAuthEnv({ databasePath: temp.databasePath });
     routes = await loadMaintenanceRoutes(modules);
     const cookie = await loginCookie();
     const missing = await callDetail(cookie, created.notice.id);
@@ -791,7 +791,7 @@ describe("retention cascade and worker CLI", () => {
           database.close();
         }
 
-        configureAuthEnv({ databasePath: temp.databasePath });
+        await configureAuthEnv({ databasePath: temp.databasePath });
         routes = await loadMaintenanceRoutes(modules);
         const cookie = await loginCookie();
         const list = await callList(cookie);

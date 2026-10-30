@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 
 import {
   CONSOLE_CONFIG_UNAVAILABLE_MESSAGE,
+  ConsoleConfigError,
   getConsoleAuthConfig,
   type ConsoleAuthConfig,
 } from "./auth-config";
@@ -28,6 +29,7 @@ const UNAUTHENTICATED_MESSAGE = "未登录或会话已过期。";
 const ORIGIN_REJECTED_MESSAGE = "请求来源校验失败。";
 const LOGIN_FAILED_MESSAGE = "登录失败，请稍后重试。";
 const LOGIN_THROTTLED_MESSAGE = "登录尝试过于频繁，请稍后再试。";
+const REMINDER_DISMISS_FAILED_MESSAGE = "保存提醒状态失败，请稍后重试。";
 
 export type ConsoleAuthorization =
   | { authorized: true; username: string }
@@ -160,35 +162,50 @@ export async function loginConsole(request: Request) {
   const token = randomBytes(32).toString("base64url");
   const now = Date.now();
   const previousToken = readSessionToken(request.headers.get("cookie"));
+  const verifiedFingerprint = createCredentialFingerprint(config);
+  let staleCredentials = false;
 
   try {
     database.exec("BEGIN IMMEDIATE");
-    database
-      .prepare("DELETE FROM console_sessions WHERE expires_at <= ?")
-      .run(now);
 
-    if (previousToken) {
+    if (
+      createCredentialFingerprint(getConsoleAuthConfig()) !==
+      verifiedFingerprint
+    ) {
+      staleCredentials = true;
+      database.exec("ROLLBACK");
+    } else {
       database
-        .prepare("DELETE FROM console_sessions WHERE token_hash = ?")
-        .run(hashSessionToken(previousToken));
-    }
+        .prepare("DELETE FROM console_sessions WHERE expires_at <= ?")
+        .run(now);
 
-    database
-      .prepare(
-        `INSERT INTO console_sessions
-          (token_hash, username, expires_at, credential_fingerprint)
-         VALUES (?, ?, ?, ?)`,
-      )
-      .run(
-        hashSessionToken(token),
-        config.username,
-        now + CONSOLE_SESSION_TTL_MS,
-        createCredentialFingerprint(config),
-      );
-    database.exec("COMMIT");
+      if (previousToken) {
+        database
+          .prepare("DELETE FROM console_sessions WHERE token_hash = ?")
+          .run(hashSessionToken(previousToken));
+      }
+
+      database
+        .prepare(
+          `INSERT INTO console_sessions
+            (token_hash, username, expires_at, credential_fingerprint)
+           VALUES (?, ?, ?, ?)`,
+        )
+        .run(
+          hashSessionToken(token),
+          config.username,
+          now + CONSOLE_SESSION_TTL_MS,
+          verifiedFingerprint,
+        );
+      database.exec("COMMIT");
+    }
   } catch {
     rollbackQuietly(database);
     return jsonResponse({ message: LOGIN_FAILED_MESSAGE }, 500);
+  }
+
+  if (staleCredentials) {
+    return invalidCredentialsResponse();
   }
 
   const response = jsonResponse({ username: config.username }, 200);
@@ -242,7 +259,86 @@ export async function getSessionConsole(request: Request) {
     return unauthenticatedResponse();
   }
 
-  return jsonResponse({ username: session.username }, 200);
+  return jsonResponse(
+    {
+      isRandomInitialPassword: session.isRandomInitialPassword,
+      reminderDismissed: session.reminderDismissed,
+      username: session.username,
+    },
+    200,
+  );
+}
+
+/**
+ * Persist the account-level initial-password reminder dismissal for the
+ * current session. The credential and session are re-read inside the write
+ * transaction so a credential change committed after login rejects the stale
+ * session instead of disabling the replacement credential's reminder.
+ */
+export async function dismissInitialPasswordReminderConsole(
+  request: Request,
+) {
+  let config: ConsoleAuthConfig;
+
+  try {
+    config = getConsoleAuthConfig();
+  } catch {
+    return configUnavailableResponse();
+  }
+
+  if (!hasAcceptedOrigin(request, config)) {
+    return originRejectedResponse();
+  }
+
+  const token = readSessionToken(request.headers.get("cookie"));
+
+  if (!token) {
+    return unauthenticatedResponse();
+  }
+
+  let database: ReturnType<typeof getConsoleDatabase>;
+
+  try {
+    database = getConsoleDatabase(config.databasePath);
+  } catch {
+    return jsonResponse({ message: REMINDER_DISMISS_FAILED_MESSAGE }, 500);
+  }
+
+  let sessionCurrent = false;
+
+  try {
+    database.exec("BEGIN IMMEDIATE");
+
+    // The write lock may wait for another writer, so read the clock only
+    // after it succeeds and use that instant for TTL and persistence.
+    const now = Date.now();
+    const currentConfig = getConsoleAuthConfig();
+
+    if (readSession(currentConfig, token, now)) {
+      database
+        .prepare(
+          `UPDATE console_admin_account
+           SET reminder_dismissed = 1, updated_at = ?
+           WHERE id = 1 AND reminder_dismissed = 0`,
+        )
+        .run(now);
+      sessionCurrent = true;
+    }
+
+    database.exec(sessionCurrent ? "COMMIT" : "ROLLBACK");
+  } catch (error) {
+    rollbackQuietly(database);
+
+    return error instanceof ConsoleConfigError
+      ? configUnavailableResponse()
+      : jsonResponse({ message: REMINDER_DISMISS_FAILED_MESSAGE }, 500);
+  }
+
+  if (!sessionCurrent) {
+    return unauthenticatedResponse();
+  }
+
+  return jsonResponse({ reminderDismissed: true }, 200);
 }
 
 function reserveLoginAttempt(
@@ -325,7 +421,11 @@ function rollbackQuietly(database: ReturnType<typeof getConsoleDatabase>) {
   }
 }
 
-function readSession(config: ConsoleAuthConfig, token: string) {
+function readSession(
+  config: ConsoleAuthConfig,
+  token: string,
+  now = Date.now(),
+) {
   try {
     const database = getConsoleDatabase(config.databasePath);
     const row = database
@@ -336,7 +436,7 @@ function readSession(config: ConsoleAuthConfig, token: string) {
       )
       .get(hashSessionToken(token));
 
-    if (!row || Number(row.expires_at) <= Date.now()) {
+    if (!row || Number(row.expires_at) <= now) {
       return null;
     }
 
@@ -346,7 +446,11 @@ function readSession(config: ConsoleAuthConfig, token: string) {
       return null;
     }
 
-    return { username: String(row.username) };
+    return {
+      isRandomInitialPassword: config.isRandomInitialPassword,
+      reminderDismissed: config.reminderDismissed,
+      username: String(row.username),
+    };
   } catch {
     return null;
   }

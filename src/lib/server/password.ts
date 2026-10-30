@@ -1,5 +1,7 @@
-import { scrypt, timingSafeEqual } from "node:crypto";
+import { randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 
+const CONSOLE_PASSWORD_BYTES = 24;
+const CONSOLE_PASSWORD_SALT_BYTES = 16;
 const SCRYPT_SALT_HEX_LENGTH = 32;
 const SCRYPT_DIGEST_HEX_LENGTH = 128;
 const SCRYPT_KEY_LENGTH = 64;
@@ -15,6 +17,19 @@ const passwordHashPattern = new RegExp(
 
 export function isConsolePasswordHash(value: string) {
   return passwordHashPattern.test(value);
+}
+
+/** Generate a random console password with 192 bits of entropy. */
+export function generateConsolePassword() {
+  return randomBytes(CONSOLE_PASSWORD_BYTES).toString("base64url");
+}
+
+/** Hash a console password with a fresh random salt and the shared scrypt format. */
+export async function hashConsolePassword(password: string) {
+  const salt = randomBytes(CONSOLE_PASSWORD_SALT_BYTES);
+  const digest = await deriveKey(password, salt);
+
+  return `scrypt$${salt.toString("hex")}$${digest.toString("hex")}`;
 }
 
 /**
