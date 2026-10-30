@@ -21,6 +21,7 @@ import { useTheme } from "next-themes";
 import { useState, useSyncExternalStore } from "react";
 
 import { BrandLogo, D20Icon, DaisyIcon } from "@/components/brand-logo";
+import { InitialPasswordReminder } from "@/components/auth/initial-password-reminder";
 import { LogoutButton } from "@/components/auth/logout-button";
 
 const { Content, Sider } = Layout;
@@ -95,7 +96,15 @@ const menuItems: ItemType[] = [
   },
 ];
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({
+  children,
+  isRandomInitialPassword,
+  reminderDismissed,
+}: {
+  children: React.ReactNode;
+  isRandomInitialPassword: boolean;
+  reminderDismissed: boolean;
+}) {
   const pathname = usePathname();
   const { setTheme, theme } = useTheme();
   const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
@@ -246,6 +255,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {children}
         </Content>
       </Layout>
+      <InitialPasswordReminder
+        isRandomInitialPassword={isRandomInitialPassword}
+        reminderDismissed={reminderDismissed}
+      />
     </Layout>
   );
 }

@@ -22,5 +22,12 @@ export default async function ConsoleLayout({
     redirect("/login");
   }
 
-  return <AppShell>{children}</AppShell>;
+  return (
+    <AppShell
+      isRandomInitialPassword={session.isRandomInitialPassword}
+      reminderDismissed={session.reminderDismissed}
+    >
+      {children}
+    </AppShell>
+  );
 }
